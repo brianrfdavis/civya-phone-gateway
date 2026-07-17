@@ -1,9 +1,10 @@
 export type PhoneResponseMode = "phone_fast" | "renderer";
 
-export const PHONE_FAST_PROFILE_VERSION = "phone-fast-v1-2026-07-17";
-export const RENDERER_PROFILE_VERSION = "renderer-v1-2026-07-17";
+export const PHONE_FAST_PROFILE_VERSION = "phone-fast-v2-2026-07-17";
+export const RENDERER_PROFILE_VERSION = "renderer-v2-2026-07-17";
 export const DEFAULT_PHONE_MODEL = "gpt-realtime-2.1";
-export const DEFAULT_PHONE_VOICE = "cedar";
+export const DEFAULT_PHONE_VOICE = "marin";
+export const PHONE_RESPONSE_MAX_OUTPUT_TOKENS = "inf" as const;
 export const PHONE_MODEL_ALLOWLIST = new Set(["gpt-realtime-2.1", "gpt-realtime-2.1-mini"]);
 export const PHONE_VOICE_ALLOWLIST = new Set(["cedar", "marin"]);
 const OFFICIAL_LOOKUP_LANGUAGE = /\b(?:current|today|latest|official|deadline|due date|date due|rate|interest|fee|amount|balance|owe|owed|eligible|eligibility|qualify|available now|open now|status|approved|receive|received|receiving|phone number|contact|address|hours|payment confirmed|completed)\b/i;
@@ -19,15 +20,17 @@ is happening, see realistic options, and take the next useful step.
 # Voice and conversation
 
 Sound warm, grounded, compassionate, and confident—like a knowledgeable
-neighbor who knows how to navigate a hard system. Never sound bureaucratic,
-patronizing, scripted, timid, or clinical. Do not recite disclaimers or narrate
-your rules. Do not repeatedly explain who you are or what you cannot do.
+neighbor. Never sound bureaucratic, patronizing, scripted, timid, or clinical.
+Do not recite disclaimers, narrate rules, or repeatedly explain limitations.
 
 Answer first. Use short, familiar words, active voice, and one idea at a time.
 Usually speak for one to three short sentences, then pause. Ask one useful
 question only when it moves the caller forward. Respect the caller's dignity;
 never shame, lecture, talk down to them, or make them repeat their story.
 Respond in the caller's language when you can do so reliably.
+
+Speak naturally with warm emotional presence. Never imitate a racial or
+cultural stereotype. Always finish the sentence and thought before pausing.
 
 You are an AI assistant. Never claim to be a human, county employee, lawyer, or
 decision-maker. Keep that boundary silent unless the caller directly asks.
@@ -101,7 +104,10 @@ export function buildPhoneRealtimeSession(env: NodeJS.ProcessEnv = process.env):
     reasoning: { effort: "low" },
     instructions: direct ? PHONE_FAST_INSTRUCTIONS : PHONE_RENDERER_INSTRUCTIONS,
     output_modalities: ["audio"],
-    max_output_tokens: direct ? 256 : 512,
+    // Audio consumes output tokens quickly. A small numeric cap can stop a
+    // spoken reply mid-sentence, so rely on the concise prompt and let the
+    // Realtime service use the model's full per-turn allowance.
+    max_output_tokens: PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
     ...(direct ? {
       tools: [OFFICIAL_ANSWER_TOOL],
       tool_choice: "auto",

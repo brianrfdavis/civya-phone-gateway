@@ -152,7 +152,7 @@ Set and record the phone response profile independently of browser voice:
 | --- | --- | --- |
 | `CIVYA_PHONE_RESPONSE_MODE` | `phone_fast` | `renderer` |
 | `CIVYA_PHONE_REALTIME_MODEL` | `gpt-realtime-2.1` | `gpt-realtime-2.1-mini` |
-| `CIVYA_PHONE_REALTIME_VOICE` | `cedar` | `cedar` or qualified `marin` |
+| `CIVYA_PHONE_REALTIME_VOICE` | `marin` | `marin` or qualified `cedar` |
 
 Changing one of these values requires a new canary call that checks the
 profile, model, voice, greeting, ordinary conversation, official lookup,

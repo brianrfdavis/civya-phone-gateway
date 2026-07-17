@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { readPstnRuntimeState } from "../services/call-control/config";
 import {
   DEFAULT_PHONE_MODEL,
   DEFAULT_PHONE_VOICE,
   OFFICIAL_ANSWER_TOOL,
+  PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
   PHONE_FAST_INSTRUCTIONS,
   PHONE_FAST_PROFILE_VERSION,
   PHONE_MODEL_ALLOWLIST,
@@ -25,7 +27,7 @@ interface RealtimeSessionFixture {
   reasoning: { effort: string };
   instructions: string;
   output_modalities: string[];
-  max_output_tokens: number;
+  max_output_tokens: number | "inf";
   tools?: Array<{
     type: string;
     name: string;
@@ -74,10 +76,10 @@ function assertFastProfile(): void {
 
   assert.equal(session.type, "realtime");
   assert.equal(session.model, "gpt-realtime-2.1");
-  assert.equal(session.audio.output.voice, "cedar");
+  assert.equal(session.audio.output.voice, "marin");
   assert.deepEqual(session.reasoning, { effort: "low" });
   assert.deepEqual(session.output_modalities, ["audio"]);
-  assert.equal(session.max_output_tokens, 256);
+  assert.equal(session.max_output_tokens, PHONE_RESPONSE_MAX_OUTPUT_TOKENS);
   assert.deepEqual(session.include, ["item.input_audio_transcription.logprobs"]);
   assert.equal(session.audio.input.transcription.model, "gpt-4o-transcribe");
 
@@ -95,6 +97,7 @@ function assertFastProfile(): void {
   assert.match(session.instructions, /Answer first\./);
   assert.match(session.instructions, /short, familiar words, active voice, and one idea at a time/i);
   assert.match(session.instructions, /one to three short sentences/i);
+  assert.match(session.instructions, /Always finish the sentence and thought/i);
   assert.match(session.instructions, /Before stating any current or official[\s\S]*call\s+get_official_answer/i);
   assert.ok(
     session.instructions.length <= 2_000,
@@ -115,6 +118,21 @@ function assertFastProfile(): void {
   assert.equal(phoneTurnRequiresOfficialLookup("When are summer property taxes due?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("Where is the Treasurer's office?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("I feel overwhelmed and need help understanding this"), false);
+
+  const callControlSource = readFileSync(
+    new URL("../services/call-control/openai-sip.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    callControlSource,
+    /max_output_tokens:\s*(?:256|512)\b/,
+    "phone responses must not reintroduce a numeric audio-token cap that can cut speech mid-sentence",
+  );
+  assert.equal(
+    callControlSource.match(/max_output_tokens:\s*PHONE_RESPONSE_MAX_OUTPUT_TOKENS/g)?.length,
+    3,
+    "all call-control response paths must use the uncapped Realtime speech budget",
+  );
 }
 
 function assertRendererProfile(): void {
@@ -132,7 +150,7 @@ function assertRendererProfile(): void {
   assert.equal(session.model, "gpt-realtime-2.1-mini");
   assert.equal(session.audio.output.voice, "marin");
   assert.deepEqual(session.reasoning, { effort: "low" });
-  assert.equal(session.max_output_tokens, 512);
+  assert.equal(session.max_output_tokens, PHONE_RESPONSE_MAX_OUTPUT_TOKENS);
   assert.equal(session.audio.input.turn_detection.silence_duration_ms, 650);
   assert.equal(session.audio.input.turn_detection.create_response, false);
   assert.equal(session.audio.input.turn_detection.interrupt_response, true);

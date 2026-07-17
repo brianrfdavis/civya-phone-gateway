@@ -44,7 +44,7 @@ export function welcomePhoneRoute(locale: "en" | "es" = "en"): PhoneRoute {
   if (locale === "es") {
     return route(
       "welcome",
-      "Hola, soy Civya, su asistente de inteligencia artificial. Estoy aquí para ayudarle a entender lo que pasa y encontrar el mejor próximo paso. ¿Qué está pasando?",
+      "Hola, soy Civya. Estoy aquí para ayudarle a entender lo que pasa y encontrar el mejor próximo paso. ¿Qué está pasando?",
       "none",
       false,
       locale,
@@ -52,7 +52,7 @@ export function welcomePhoneRoute(locale: "en" | "es" = "en"): PhoneRoute {
   }
   return route(
     "welcome",
-    "Hi, I'm Civya, your AI assistant. I'm here to help you understand what's happening and find the best next step. What's going on?",
+    "Hi, I'm Civya. I'm here to help you understand what's happening and find the best next step. What's going on?",
     "none",
     false,
     locale,

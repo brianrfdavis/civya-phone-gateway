@@ -9,6 +9,7 @@ import { readPstnRuntimeState } from "./config";
 import {
   buildPhoneRealtimeSession,
   OFFICIAL_ANSWER_TOOL,
+  PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
   phoneProfileVersion,
   phoneTurnRequiresOfficialLookup,
   readPhoneModel,
@@ -63,6 +64,10 @@ interface RealtimeEvent {
   response?: {
     id?: string;
     status?: string;
+    status_details?: {
+      type?: string;
+      reason?: string;
+    };
     output?: Array<{
       id?: string;
       type?: string;
@@ -136,6 +141,9 @@ export class OpenAISipController {
     rejectedCapacity: 0,
     phoneTurnFailures: 0,
     directResponses: 0,
+    incompleteResponses: 0,
+    cancelledResponses: 0,
+    maxOutputTokenStops: 0,
     officialLookups: 0,
     officialLookupFailures: 0,
     supersededLookups: 0,
@@ -580,6 +588,14 @@ export class OpenAISipController {
       const active = call.activeResponse;
       if (!active) return;
       const completed = event.response?.status === "completed";
+      if (event.response?.status === "incomplete") {
+        this.metrics.incompleteResponses += 1;
+        if (event.response.status_details?.reason === "max_output_tokens") {
+          this.metrics.maxOutputTokenStops += 1;
+        }
+      } else if (event.response?.status === "cancelled") {
+        this.metrics.cancelledResponses += 1;
+      }
       const functionCall = event.response?.output?.find((item) => item.type === "function_call");
       if (completed && active.kind === "direct" && active.turn.stage === "answer" && functionCall) {
         const lookupTurn = { ...active.turn, stage: "lookup_pending" as const };
@@ -770,7 +786,7 @@ export class OpenAISipController {
         output_modalities: ["audio"],
         tools: [],
         tool_choice: "none",
-        max_output_tokens: 256,
+        max_output_tokens: PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
         instructions,
       },
     }));
@@ -886,7 +902,7 @@ export class OpenAISipController {
           output_modalities: ["audio"],
           tools: [],
           tool_choice: "none",
-          max_output_tokens: 256,
+          max_output_tokens: PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
           instructions: `Speak exactly this text with warmth and no additions or changes:\n\n${task.route.approvedSpeech}`,
         },
       }));
@@ -896,7 +912,7 @@ export class OpenAISipController {
       type: "response.create",
       response: {
         output_modalities: ["audio"],
-        max_output_tokens: 256,
+        max_output_tokens: PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
         ...(phoneTurnRequiresOfficialLookup(task.turn.transcript) ? {
           tools: [OFFICIAL_ANSWER_TOOL],
           tool_choice: "required",

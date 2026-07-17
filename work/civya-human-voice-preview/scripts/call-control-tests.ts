@@ -17,7 +17,9 @@ const state = { offeredSecureLink: false, locale: "en" as const };
 assert.equal(welcomePhoneRoute().intent, "welcome");
 assert.match(welcomePhoneRoute().approvedSpeech, /help you understand/i);
 assert.match(welcomePhoneRoute().approvedSpeech, /best next step/i);
-assert.match(welcomePhoneRoute().approvedSpeech, /AI assistant/i);
+assert.match(welcomePhoneRoute().approvedSpeech, /^Hi, I'm Civya\./i);
+assert.doesNotMatch(welcomePhoneRoute().approvedSpeech, /\bAI\b|artificial intelligence/i);
+assert.doesNotMatch(welcomePhoneRoute("es").approvedSpeech, /inteligencia artificial/i);
 assert.doesNotMatch(
   welcomePhoneRoute().approvedSpeech,
   /not the treasurer|official record|test call|disclaimer/i,
@@ -451,7 +453,7 @@ async function testCallControlActivationAndClaims(): Promise<void> {
         model: string;
         reasoning: { effort: string };
         instructions: string;
-        max_output_tokens: number;
+        max_output_tokens: number | "inf";
         tools: Array<{ name: string; parameters: { additionalProperties: boolean } }>;
         tool_choice: string;
         audio: {
@@ -464,13 +466,13 @@ async function testCallControlActivationAndClaims(): Promise<void> {
       assert.match(request.instructions, /capable voice advocate/i);
       assert.match(request.instructions, /Answer first/i);
       assert.doesNotMatch(request.instructions, /Never originate advice|not the Treasurer/i);
-      assert.equal(request.max_output_tokens, 256);
+      assert.equal(request.max_output_tokens, "inf");
       assert.equal(request.tool_choice, "auto");
       assert.deepEqual(request.tools.map((tool) => tool.name), ["get_official_answer"]);
       assert.equal(request.tools[0]?.parameters.additionalProperties, false);
       assert.equal(request.audio.input.turn_detection.silence_duration_ms, 500);
       assert.equal(request.audio.input.turn_detection.create_response, false);
-      assert.equal(request.audio.output.voice, "cedar");
+      assert.equal(request.audio.output.voice, "marin");
       order.push("accept");
       return new Response(null, { status: 200 });
     }) as typeof fetch,

@@ -57,7 +57,7 @@ const registry: Record<ModelTask, ModelTaskPolicy> = {
   },
   official_research: {
     task: "official_research",
-    defaultModel: "gpt-5.6-luna",
+    defaultModel: "gpt-5.6-sol",
     allowedData: ["redacted_public_question", "allowlisted_official_source_results"],
     prohibitedAuthority: ["private_case", "identity", "eligibility", "payment", "routing", "completion"],
     maxLatencyMs: 4_500,
