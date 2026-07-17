@@ -28,15 +28,23 @@ export async function POST(req: NextRequest) {
     const started = performance.now();
     const match = findDemoResident(address);
     if (!match) {
+      const spokenText =
+        "I don't see a matching fictional demo record. We can still continue without claiming a property match.";
       return NextResponse.json({
         matched: false,
         saved: false,
         lookup_ms: Math.round(performance.now() - started),
-        assistant_followup:
-          "I don't see a matching fictional demo record. We can still continue with the address already saved by the guided conversation.",
+        assistant_followup: spokenText,
+        spoken_text: spokenText,
+        verification_state: "not_found",
+        authority: "versioned fictional Wayne County demo dataset",
+        source: "civya://wayne-county-demo/property-scenarios",
+        retrieved_at: new Date().toISOString(),
+        scope: "fictional_property_lookup",
         fictional: true,
       });
     }
+    const spokenText = `I found the fictional demo property in ${match.municipality}.`;
     return NextResponse.json({
       matched: true,
       saved: false,
@@ -49,9 +57,13 @@ export async function POST(req: NextRequest) {
         delinquent_years: match.delinquentYears,
         balance_due_demo: match.balanceDueDemo,
       },
-      assistant_followup:
-        `I found the fictional demo property in ${match.municipality}. ` +
-        "The authoritative conversation keeps the confirmed address and next question saved.",
+      assistant_followup: spokenText,
+      spoken_text: spokenText,
+      verification_state: "verified",
+      authority: "versioned fictional Wayne County demo dataset",
+      source: "civya://wayne-county-demo/property-scenarios",
+      retrieved_at: new Date().toISOString(),
+      scope: "fictional_property_lookup",
       fictional: true,
     });
   } catch (error) {

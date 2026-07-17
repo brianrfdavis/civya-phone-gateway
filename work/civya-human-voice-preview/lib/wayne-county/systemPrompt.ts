@@ -1,4 +1,8 @@
-import { CIVYA_INSTRUCTIONS } from "@/lib/realtime/persona";
+import {
+  CIVYA_INSTRUCTIONS,
+  FAST_CIVYA_INSTRUCTIONS,
+  LEGACY_FAST_CIVYA_INSTRUCTIONS,
+} from "@/lib/realtime/persona";
 
 /**
  * Runtime addendum — key Wayne County facts only, one line each.
@@ -17,6 +21,10 @@ WAYNE COUNTY LAUNCH CONTEXT:
 `.trim();
 
 export const WAYNE_COUNTY_SYSTEM_PROMPT = `${CIVYA_INSTRUCTIONS}\n\n${WAYNE_COUNTY_ADDENDUM}`;
+
+export const FAST_WAYNE_COUNTY_SYSTEM_PROMPT = FAST_CIVYA_INSTRUCTIONS;
+
+export const LEGACY_FAST_WAYNE_COUNTY_SYSTEM_PROMPT = LEGACY_FAST_CIVYA_INSTRUCTIONS;
 
 const PRODUCTION_INSTRUCTIONS = CIVYA_INSTRUCTIONS.replace(
   "When an adapter is synthetic, label its\ncallbacks, submissions, payments, and staff queues as simulated. Never infer\nthat a hosted return means an external action completed.",

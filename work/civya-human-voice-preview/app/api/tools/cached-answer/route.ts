@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRuntimeConfig } from "@/lib/config/runtime";
 import { resolveAnswer } from "@/lib/cache/resolver";
 import { bootstrapAuthorizedResidentCase } from "@/lib/conversation/runtime-bootstrap.server";
 import {
@@ -65,9 +66,21 @@ export async function POST(req: NextRequest) {
       assistantFollowup = tail ? `${result.answer} ${tail}` : result.answer;
     }
 
+    const retrievedAt = new Date().toISOString();
+    const spokenText = assistantFollowup || result.answer ||
+      "I couldn't verify that in the current approved information. The Wayne County Treasurer should confirm it.";
     return NextResponse.json({
       ...result,
       assistant_followup: assistantFollowup,
+      spoken_text: spokenText,
+      verification_state: result.hit ? "verified" : "unavailable",
+      authority: result.hit
+        ? result.source_url ? "source-backed approved knowledge" : "Civya approved knowledge"
+        : null,
+      source: result.hit ? result.source_url || null : null,
+      retrieved_at: retrievedAt,
+      scope: "wayne_county_property_tax_help",
+      fictional: getRuntimeConfig().syntheticMode,
       continue_conversation: true,
     });
   } catch (error) { return requestErrorResponse(error); }

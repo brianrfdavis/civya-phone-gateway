@@ -2,11 +2,9 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getRuntimeConfig } from "@/lib/config/runtime";
 import { requireCaseEntitlementSession } from "@/lib/entitlement/guard";
-import { REALTIME_TOOLS } from "@/lib/realtime/tools";
-import {
-  PRODUCTION_WAYNE_COUNTY_SYSTEM_PROMPT,
-  WAYNE_COUNTY_SYSTEM_PROMPT,
-} from "@/lib/wayne-county/systemPrompt";
+import { resolveVoiceResponseMode } from "@/lib/realtime/mode";
+import { getRealtimeVoiceProfile } from "@/lib/realtime/profiles";
+import { PRODUCTION_WAYNE_COUNTY_SYSTEM_PROMPT } from "@/lib/wayne-county/systemPrompt";
 import { createRequestPlatform } from "@/lib/platform";
 import { fetchWithTimeout, rateLimitRequest, requestErrorResponse } from "@/lib/security/request";
 
@@ -15,9 +13,8 @@ export const runtime = "nodejs";
 /**
  * Mints a short-lived Realtime client secret so the browser can open a
  * WebRTC session directly with OpenAI. The real API key never leaves the
- * server. Server VAD detects the end of speech, but response creation is kept
- * off: Civya's authoritative turn endpoint must durably process the transcript
- * before the browser asks Realtime to speak the approved answer.
+ * server. The effective voice profile decides whether Realtime responds
+ * directly or waits for Civya's authoritative saved-turn pipeline.
  */
 const MODEL = "gpt-realtime-2.1";
 const CONFIGURED_MODEL = process.env.OPENAI_REALTIME_MODEL?.trim();
@@ -25,17 +22,26 @@ const CONFIGURED_VOICE = process.env.OPENAI_REALTIME_VOICE?.trim() || "marin";
 const QUALIFIED_VOICES = new Set(["marin", "cedar"]);
 const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 
-const TURN_DETECTION = {
-  type: "server_vad",
-  threshold: 0.5,
-  prefix_padding_ms: 300,
-  silence_duration_ms: 500,
-  create_response: false,
-  interrupt_response: true,
-} as const;
-
 export async function POST(request: NextRequest) {
   const runtimeConfig = getRuntimeConfig();
+  let modeSelection;
+  try {
+    modeSelection = resolveVoiceResponseMode({
+      configuredMode: process.env.CIVYA_VOICE_MODE,
+      syntheticMode: runtimeConfig.syntheticMode,
+      environment: runtimeConfig.environment,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Voice response mode is invalid.",
+        code: "REALTIME_MODE_MISCONFIGURED",
+        text_mode_available: true,
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const profile = getRealtimeVoiceProfile(modeSelection.effective);
   if (!runtimeConfig.syntheticMode
     && (runtimeConfig.providers.language !== "live"
       || !runtimeConfig.providerReadiness.providers.language.ready)) {
@@ -135,17 +141,18 @@ export async function POST(request: NextRequest) {
           type: "realtime",
           model: MODEL,
           output_modalities: ["audio"],
+          max_output_tokens: 512,
           instructions: runtimeConfig.syntheticMode
-            ? WAYNE_COUNTY_SYSTEM_PROMPT
+            ? profile.instructions
             : PRODUCTION_WAYNE_COUNTY_SYSTEM_PROMPT,
           reasoning: { effort: "low" },
           ...(runtimeConfig.syntheticMode
-            ? { tools: REALTIME_TOOLS, tool_choice: "auto" }
+            ? { tools: profile.tools, tool_choice: "auto" }
             : {}),
           audio: {
             input: {
               transcription: { model: TRANSCRIPTION_MODEL },
-              turn_detection: TURN_DETECTION,
+              turn_detection: profile.turnDetection,
             },
             output: { voice },
           },
@@ -188,8 +195,12 @@ export async function POST(request: NextRequest) {
         voice,
         transcription_model: TRANSCRIPTION_MODEL,
         reasoning_effort: "low",
-        turn_detection: TURN_DETECTION.type,
-        automatic_response_creation: false,
+        turn_detection: profile.turnDetection.type,
+        automatic_response_creation: profile.automaticResponseCreation,
+        requested_response_mode: modeSelection.requested,
+        response_mode: modeSelection.effective,
+        response_profile_version: profile.version,
+        forced_authoritative: modeSelection.forcedAuthoritative,
       },
       { headers: { "Cache-Control": "no-store, private" } },
     );

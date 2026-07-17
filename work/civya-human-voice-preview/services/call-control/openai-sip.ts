@@ -15,7 +15,7 @@ import {
   type PhoneRouterState,
 } from "./phone-router";
 
-const MODEL = "gpt-realtime-2.1-mini";
+const MODEL = "gpt-realtime-2.1";
 const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 const DEFAULT_VOICE = "marin";
 const CALL_ID = /^[A-Za-z0-9_-]{6,200}$/;
@@ -331,6 +331,7 @@ export class OpenAISipController {
     await this.callApi(callId, "accept", {
       type: "realtime",
       model: MODEL,
+      reasoning: { effort: "low" },
       instructions: [
         "You are Civya's phone voice renderer.",
         "Never originate advice, facts, amounts, dates, case status, eligibility, identity decisions, or completion claims.",

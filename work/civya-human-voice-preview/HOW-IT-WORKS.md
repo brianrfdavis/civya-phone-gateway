@@ -33,7 +33,30 @@ After a six-digit email code is verified:
 Declining the account step keeps general information available but disables
 personal intake, documents, reminders, and saved actions.
 
-## 2. The authoritative turn pipeline
+## 2. Three reversible voice profiles
+
+The fictional preview defaults to `CIVYA_VOICE_MODE=fast`. Realtime server VAD
+detects the end of speech after 500 milliseconds and creates the response
+immediately. The full audio model handles ordinary conversation directly;
+transcription supplies captions and redacted continuity after response creation,
+so it never blocks first audio.
+
+Verified tools remain authoritative for saved facts, official or time-sensitive
+information, routing, callbacks, submissions, payments, and other actions. Tool
+results include ready-to-speak text and source state. A missing source or failed
+write is never represented as verified or saved.
+
+Two fallbacks stay in the codebase:
+
+- `CIVYA_VOICE_MODE=legacy_fast` restores a separately versioned compatibility
+  profile based on the July 14 direct-Realtime experience, with current account
+  and data-integrity guardrails retained.
+- `CIVYA_VOICE_MODE=authoritative` restores the server-first pipeline below.
+
+Non-synthetic and production runtimes force `authoritative`, even if another
+mode is requested.
+
+## 3. The authoritative turn pipeline
 
 Realtime server VAD detects that speech ended, but `create_response` is false.
 The browser waits for the final `gpt-4o-transcribe` transcript and sends a
@@ -59,7 +82,7 @@ Retries reuse the same envelope and idempotency key. A committed replay returns
 the same result. Optimistic case versions reject a stale writer; the server
 reloads and retries once. Civya never says a failed write was saved.
 
-## 3. Resume and memory
+## 4. Resume and memory
 
 `GET /api/bootstrap` derives ownership from the Auth session and returns:
 
@@ -77,7 +100,13 @@ and Realtime session hydrate from this response. Raw audio is never saved.
 Browser-supplied case IDs are references only and are checked against the
 session-owned active case.
 
-## 4. Supabase boundary
+In both fast profiles, resident transcripts are redacted and appended
+asynchronously with stable turn keys. Browser-supplied assistant text is not
+accepted into trusted resume history. A clearly provided intake answer uses a
+narrow allowlisted tool and the existing versioned case commit. Questions,
+refusals, repeat requests, and unclear corrections are rejected as facts.
+
+## 5. Supabase boundary
 
 The normalized schema includes tenants, residents, cases, case facts,
 conversations, turns, documents, checklist items, consent, review tasks,
@@ -100,7 +129,7 @@ Rows use versions and unique idempotency constraints. Simulated callbacks,
 reviews, reminders, submissions, and payments use dedupe keys. All program
 transactions remain visibly fictional.
 
-## 5. Documents
+## 6. Documents
 
 `POST /api/uploads` requires a verified resident session and the active case.
 It enforces the request/file size, extension, declared MIME type, and magic
@@ -117,7 +146,7 @@ quarantine-review purpose, and signed URLs last only briefly.
 Retries use an idempotency digest and do not create duplicate metadata or
 orphaned object paths.
 
-## 6. Voice reliability
+## 7. Voice reliability
 
 The county-demo route accepts only:
 
@@ -126,7 +155,18 @@ The county-demo route accepts only:
 - voice: `marin` or `cedar` (`marin` default);
 - transcription: `gpt-4o-transcribe`;
 - server VAD silence window: 500 ms;
-- automatic response creation: off.
+- automatic response creation: on for `fast` and `legacy_fast`, off for
+  `authoritative`.
+
+The session response includes the requested mode, effective mode, and frozen
+profile version. The client treats the effective mode as immutable, binds each
+automatic response and function call to a stable turn, and never submits a
+fast transcript to `/api/conversations/turn` for a second answer.
+
+First-audio events record the response mode, profile version, and ordinary/tool
+kind. Export the privacy-safe audit events and run
+`npm run report:voice-latency -- <events.json-or-jsonl>` to compare sample count,
+median, and p95 speech-stop-to-first-audio latency across profiles.
 
 Connection setup is cancellable. The client watches the peer connection, ICE,
 and data channel; tries at most two reconnects; scopes queued continuations to
@@ -137,7 +177,7 @@ When the authoritative result marks the conversation complete, Civya lets the
 final audio finish, records the ending, stops every microphone track, closes
 the data channel/peer connection, and returns the page to idle.
 
-## 7. Staff, invitations, metrics, and retention
+## 8. Staff, invitations, metrics, and retention
 
 An admin creates an expiring resident-demo invitation inside the protected
 dashboard. It is redeemed for an HttpOnly signed demo-access cookie and shown
@@ -156,7 +196,7 @@ the tenant's 30-day retention period, and drains a durable outbox for private
 Storage objects and orphaned anonymous Auth users. Failures remain queued for
 retry and make the worker return an unhealthy status.
 
-## 8. Review status
+## 9. Review status
 
 This repository can demonstrate continuity and safety controls, but it must
 not be represented as approved for real residents. Before that claim, the

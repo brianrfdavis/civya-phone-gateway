@@ -407,7 +407,13 @@ async function testCallControlActivationAndClaims(): Promise<void> {
     fetch: (async (input, init) => {
       assert.match(String(input), /\/call_runtime_001\/accept$/);
       assert.equal(init?.method, "POST");
-      const request = JSON.parse(String(init?.body)) as { instructions: string };
+      const request = JSON.parse(String(init?.body)) as {
+        model: string;
+        reasoning: { effort: string };
+        instructions: string;
+      };
+      assert.equal(request.model, "gpt-realtime-2.1");
+      assert.deepEqual(request.reasoning, { effort: "low" });
       assert.match(request.instructions, /Never originate advice/);
       order.push("accept");
       return new Response(null, { status: 200 });

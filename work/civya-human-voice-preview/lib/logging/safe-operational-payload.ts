@@ -13,6 +13,10 @@ const STRING_FIELDS = new Set([
   "when",
   "scope",
   "message",
+  "response_mode",
+  "requested_response_mode",
+  "profile_version",
+  "latency_kind",
 ]);
 const NUMBER_FIELDS = new Set([
   "milliseconds",

@@ -13,6 +13,8 @@ const read = (path) =>
 const persona = read("lib/realtime/persona.ts");
 const tools = read("lib/realtime/tools.ts");
 const session = read("app/api/realtime/session/route.ts");
+const profiles = read("lib/realtime/profiles.ts");
+const mode = read("lib/realtime/mode.ts");
 const client = read("lib/realtime/client.ts");
 const page = read("app/page.tsx");
 
@@ -54,9 +56,9 @@ check(
 );
 check(
   "fast server VAD is the turn detector",
-  session.includes('type: "server_vad"') &&
-    session.includes("silence_duration_ms: 500") &&
-    !session.includes('type: "semantic_vad"'),
+  profiles.includes('type: "server_vad"') &&
+    profiles.includes("silence_duration_ms: 500") &&
+    !profiles.includes('type: "semantic_vad"'),
 );
 check(
   "Wayne County launch uses only the qualified Realtime model",
@@ -77,17 +79,19 @@ check(
     session.includes('reasoning: { effort: "low" }'),
 );
 check(
-  "VAD cannot bypass authoritative turn processing",
-  session.includes("create_response: false") &&
+  "authoritative mode remains server-first while synthetic fast modes auto-respond",
+  profiles.includes("automaticResponseCreation: true") &&
+    profiles.includes("automaticResponseCreation: false") &&
     client.includes('"/api/conversations/turn"') &&
-    client.includes('tool_choice: "none"'),
+    client.includes("if (this.isDirectMode())") &&
+    mode.includes('mode === "fast" || mode === "legacy_fast"'),
 );
 check(
-  "ordinary facts and endings are not exposed as model-controlled memory tools",
-  !tools.includes('name: "save_intake_answer"') &&
-    !tools.includes('name: "upload_document_metadata"') &&
-    !tools.includes('name: "end_or_save_conversation"') &&
-    tools.includes('name: "lookup_property_status"') &&
+  "fact mutation is exposed only in the direct profile and remains server guarded",
+  tools.includes('name: "save_intake_answer"') &&
+    tools.includes("FAST_REALTIME_TOOLS") &&
+    tools.includes("LEGACY_FAST_REALTIME_TOOLS") &&
+    tools.includes('name: "request_secure_account"') &&
     client.includes('lookup_property_status: "/api/tools/property-status"'),
 );
 check(

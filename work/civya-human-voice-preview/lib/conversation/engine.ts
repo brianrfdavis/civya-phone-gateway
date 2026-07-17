@@ -20,7 +20,7 @@ export type EngineDecision =
   | { kind: "clarify_fact"; question: IntakeQuestion; answer: string }
   | { kind: "end"; answer: string };
 
-const BASE_INTAKE: IntakeQuestion[] = [
+export const INTAKE_QUESTIONS: readonly IntakeQuestion[] = [
   { key: "property_address", question: "What's the address of the property?", sensitive: true },
   { key: "resident_name", question: "Can I get your first and last name?", sensitive: true },
   { key: "contact", question: "What's the best phone number or email to use if we need to follow up?", sensitive: true },
@@ -33,6 +33,8 @@ const BASE_INTAKE: IntakeQuestion[] = [
   { key: "household_size", question: "How many people live in the household?", sensitive: false },
 ];
 
+export const INTAKE_FACT_KEYS = new Set(INTAKE_QUESTIONS.map((question) => question.key));
+
 const ENDING = /\b(?:end the conversation|i(?:'m| am) done|goodbye|stop now|that's all)\b/i;
 const ADDRESS = /\b\d{1,6}\s+[A-Za-z0-9][A-Za-z0-9\s.'-]{1,50}\b(?:street|st|avenue|ave|road|rd|drive|dr|boulevard|blvd|lane|ln|court|ct|place|pl|parkway|pkwy)\b[^.!?\n]*/i;
 const PHONE = /(?<!\d)(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?!\d)/;
@@ -44,12 +46,28 @@ export function factsMap(facts: ConfirmedFact[]): Record<string, string> {
 
 export function nextIntakeQuestion(context: ResumeContext): IntakeQuestion | undefined {
   const facts = factsMap(context.confirmed_facts);
-  const question = BASE_INTAKE.find((candidate) => !facts[candidate.key]);
+  const question = INTAKE_QUESTIONS.find((candidate) => !facts[candidate.key]);
   if (!question) return undefined;
   if (question.key === "owner_occupancy" && facts.property_address) {
     return { ...question, question: `Are you currently living in the home at ${facts.property_address}?` };
   }
   return question;
+}
+
+const NON_ANSWER_OPENING = /^(?:why|what|which|who|where|when|how|can|could|would|will|do|does|did|is|are|am|may|should)\b/i;
+const REFUSAL = /\b(?:prefer not|rather not|don't want|do not want|won't share|will not share|not comfortable|skip (?:it|that)|none of your business)\b/i;
+const REPAIR = /\b(?:say that again|repeat (?:that|the question)|what did you (?:say|ask)|didn't (?:hear|understand)|not what i said|that's not what i said)\b/i;
+
+export function isLikelyNonAnswer(text: string): boolean {
+  const value = text.trim();
+  if (!value) return true;
+  return value.endsWith("?") || NON_ANSWER_OPENING.test(value) || REFUSAL.test(value) || REPAIR.test(value);
+}
+
+export function normalizeIntakeFact(field: string, sourceText: string): CapturedFact | null {
+  const question = INTAKE_QUESTIONS.find((candidate) => candidate.key === field);
+  if (!question || isLikelyNonAnswer(sourceText)) return null;
+  return normalizedFact(question, sourceText);
 }
 
 function normalizedFact(question: IntakeQuestion, transcript: string): CapturedFact | null {
@@ -95,6 +113,14 @@ function normalizedFact(question: IntakeQuestion, transcript: string): CapturedF
     case "household_size": {
       const count = value.match(/\b\d{1,2}\b/)?.[0];
       return count ? { key: question.key, value: count, displayValue: count } : null;
+    }
+    case "municipality": {
+      const municipality = value
+        .replace(/^(?:no[,\s]+)?(?:i (?:live|am) in|it's|it is|the (?:city|township) is)\s+/i, "")
+        .trim();
+      return municipality
+        ? { key: question.key, value: municipality.slice(0, 120), displayValue: municipality.slice(0, 120) }
+        : null;
     }
     default:
       return { key: question.key, value: value.slice(0, 500), displayValue: value.slice(0, 160) };

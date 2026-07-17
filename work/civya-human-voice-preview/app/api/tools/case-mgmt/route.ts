@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import {
+  appendTurn,
   bootstrapSession,
+  commitTurnResult,
   createAdminPlatform,
   finishConversation,
   loadCaseSnapshot,
   PlatformDataError,
   type CaseSnapshot,
 } from "@/lib/platform";
+import { nextIntakeQuestion, normalizeIntakeFact } from "@/lib/conversation/engine";
 import {
   requireCaseEntitlement,
   requireCaseEntitlementSession,
@@ -20,7 +24,6 @@ export const runtime = "nodejs";
 type JsonObject = Record<string, unknown>;
 
 const UNSUPPORTED_FACT_MUTATIONS = new Set([
-  "save_intake_answer",
   "lookup_property_status",
   "create_or_update_resident",
   "create_or_update_case",
@@ -63,6 +66,20 @@ async function updateCaseVersioned(
   return Number(data.row_version);
 }
 
+function intakeSummary(factCount: number, nextQuestion?: string): string {
+  const collected = `${factCount} confirmed intake ${factCount === 1 ? "fact" : "facts"}`;
+  return nextQuestion
+    ? `${collected}. The next guided question is pending.`
+    : `${collected}. No guided question is pending.`;
+}
+
+function intakeReceiptKey(clientTurnId: string, field: string, value: string, sourceText: string): string {
+  const digest = createHash("sha256")
+    .update(["civya-intake-v1", field, value, sourceText].join("\0"))
+    .digest("hex");
+  return `fast-user:${clientTurnId.slice(0, 110)}:${digest}`;
+}
+
 /**
  * Explicit saved actions only. Ordinary facts always go through the
  * authoritative conversation-turn transaction; this route never falls back
@@ -89,10 +106,138 @@ export async function POST(req: NextRequest) {
     if (suppliedCaseId && suppliedCaseId !== bootstrap.active_case.id) {
       throw new RequestError(403, "The case does not belong to this resident session.", "forbidden");
     }
-    const snapshot = await loadCaseSnapshot(platform, bootstrap.active_case.id);
+    let snapshot = await loadCaseSnapshot(platform, bootstrap.active_case.id);
     const admin = createAdminPlatform().client;
     const key = idempotencyKey(req, body, tool, snapshot.id);
     const facts = Object.fromEntries(snapshot.confirmedFacts.map((fact) => [fact.key, fact.value]));
+
+    if (tool === "save_intake_answer") {
+      const field = text(args.field, 80);
+      const sourceText = text(args.source_text, 12_000);
+      const clientTurnId = text(body.client_turn_id || args.client_turn_id, 200);
+      const providerItemId = text(body.provider_item_id || args.provider_item_id, 200);
+      const channel = body.channel === "text" ? "text" : "voice";
+      if (!clientTurnId || !sourceText) {
+        throw new RequestError(400, "A stable client turn and the resident's source words are required.");
+      }
+      const captured = normalizeIntakeFact(field, sourceText);
+      if (!captured) {
+        return NextResponse.json({
+          saved: false,
+          verification_state: "not_confirmed",
+          spoken_text: "I don't want to save that as an answer. Could you say the answer in a different way?",
+          assistant_followup: "I don't want to save that as an answer. Could you say the answer in a different way?",
+          fictional: true,
+        });
+      }
+
+      const stableTurnKey = intakeReceiptKey(clientTurnId, captured.key, captured.value, sourceText);
+      let persisted;
+      try {
+        persisted = await appendTurn(platform, {
+          conversation_id: bootstrap.conversation.id,
+          provider_item_id: providerItemId || undefined,
+          client_turn_id: clientTurnId,
+          transcript: sourceText,
+          channel,
+          idempotency_key: stableTurnKey,
+        });
+      } catch (error) {
+        // A different receipt digest with the same client turn hits the
+        // conversation/client-turn uniqueness boundary. Fail closed instead
+        // of racing two interpretations of one resident utterance.
+        if (error instanceof PlatformDataError && error.code === "23505") {
+          throw new RequestError(
+            409,
+            "That turn was already received with different intake data.",
+            "idempotency_conflict",
+          );
+        }
+        throw error;
+      }
+      if (persisted.duplicate && persisted.processingStatus === "committed" && persisted.processingResult) {
+        if (persisted.idempotencyKey !== stableTurnKey) {
+          throw new RequestError(
+            409,
+            "That turn was already committed with different intake data.",
+            "idempotency_conflict",
+          );
+        }
+        return NextResponse.json({
+          ...persisted.processingResult,
+          saved: true,
+          spoken_text: persisted.processingResult.spoken_response,
+          assistant_followup: persisted.processingResult.spoken_response,
+          fictional: true,
+          duplicate: true,
+        });
+      }
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const current = nextIntakeQuestion({
+          ...bootstrap.resume_context,
+          confirmed_facts: snapshot.confirmedFacts,
+          conversation_summary: snapshot.resumeSummary || bootstrap.resume_context.conversation_summary,
+          current_workflow_state: snapshot.workflowState,
+          next_question: snapshot.nextQuestion,
+        });
+        if (!current || current.key !== captured.key) {
+          const spokenText = current
+            ? `I didn't save that because it doesn't answer the current question. ${current.question}`
+            : "I didn't save that because the guided intake is already complete.";
+          return NextResponse.json({
+            saved: false,
+            verification_state: "unexpected_field",
+            spoken_text: spokenText,
+            assistant_followup: spokenText,
+            fictional: true,
+          });
+        }
+        const confirmed = [
+          ...snapshot.confirmedFacts.filter((fact) => fact.key !== captured.key),
+          { key: captured.key, value: captured.value, confirmed_at: new Date().toISOString() },
+        ];
+        const next = nextIntakeQuestion({
+          ...bootstrap.resume_context,
+          confirmed_facts: confirmed,
+          conversation_summary: snapshot.resumeSummary || bootstrap.resume_context.conversation_summary,
+          current_workflow_state: snapshot.workflowState,
+          next_question: snapshot.nextQuestion,
+        });
+        const spokenText = next
+          ? `Got it. ${next.question}`
+          : "Got it. Your fictional demo intake is complete, and a reviewer can check the next step.";
+        try {
+          const committed = await commitTurnResult(platform, {
+            userTurnId: persisted.id,
+            expectedCaseVersion: snapshot.rowVersion,
+            conversationId: bootstrap.conversation.id,
+            clientTurnId,
+            spokenResponse: spokenText,
+            nextQuestion: next?.question,
+            workflowState: next ? `awaiting_${next.key}` : "intake_complete",
+            caseStatus: next ? "intake_in_progress" : "packet_ready",
+            conversationSummary: intakeSummary(confirmed.length, next?.question),
+            interactionState: "continue",
+            confirmedFacts: { [captured.key]: captured.value },
+          });
+          return NextResponse.json({
+            ...committed,
+            saved: true,
+            saved_field: captured.key,
+            spoken_text: spokenText,
+            assistant_followup: spokenText,
+            fictional: true,
+          });
+        } catch (error) {
+          if (attempt === 0 && error instanceof PlatformDataError && error.retryable) {
+            snapshot = await loadCaseSnapshot(platform, bootstrap.active_case.id);
+            continue;
+          }
+          throw error;
+        }
+      }
+    }
 
     if (UNSUPPORTED_FACT_MUTATIONS.has(tool)) {
       return NextResponse.json(

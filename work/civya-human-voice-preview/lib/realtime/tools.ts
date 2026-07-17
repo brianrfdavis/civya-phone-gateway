@@ -1,8 +1,8 @@
 /**
- * Realtime sees read-only lookups and explicit resident-requested actions.
- * Ordinary intake facts and conversation endings are committed by the
- * authoritative turn endpoint and are deliberately absent from this list.
- * The larger dispatcher surface remains only for guarded compatibility.
+ * The authoritative profile sees read-only lookups and explicit
+ * resident-requested actions. Direct profiles add narrow intake, account,
+ * silence, and ending controls below. The larger dispatcher surface remains
+ * only for guarded compatibility.
  */
 export const REALTIME_TOOLS = [
   {
@@ -109,39 +109,102 @@ export const REALTIME_TOOLS = [
   },
 ] as const;
 
-/** Guarded compatibility tools routed through the case-mgmt dispatcher. */
-export const CASE_MGMT_TOOLS = new Set([
-  "save_intake_answer",
-  "screen_program_fit",
-  "generate_document_checklist",
-  "upload_document_metadata",
-  "simulate_payment_path",
-  "route_to_partner",
-  "schedule_callback",
-  "create_human_followup_request",
-  "flag_for_human_review",
-  "submit_demo_intake",
-  "get_case_summary",
-  "end_or_save_conversation",
-  // Legacy names kept for UI pages / back-compat (not registered with the model):
-  "create_or_update_resident",
-  "create_or_update_case",
-  "record_contact_consent",
-  "schedule_sms_reminder",
-  "send_case_link",
-  "create_human_review_task",
-  "flag_case_for_review",
-  "generate_packet_summary",
-  "validate_packet_readiness",
-  "prepare_simulated_submission",
-  "submit_demo_packet",
-  "generate_demo_confirmation",
-  "calculate_demo_payment_options",
-  "create_demo_payment_plan",
-  "submit_demo_payment",
-  "get_demo_payment_status",
-  "complete_demo_enrollment",
-  "classify_uploaded_document",
-  "get_uploaded_documents",
-  "get_missing_documents",
-]);
+const DIRECT_CONTROL_TOOLS = [
+  {
+    type: "function",
+    name: "wait_for_user",
+    description:
+      "Use only for silence, background media, a side conversation, or an unfinished thought. After calling, say nothing and keep listening.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
+    type: "function",
+    name: "request_secure_account",
+    description:
+      "Call before asking for or saving a name, address, parcel, contact detail, income, document, reminder, or other private information. Choose only the field category; the app supplies the safe question, pauses the microphone, and opens the secure account step. Never ask for an email code aloud.",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: { type: "string" },
+        field: {
+          type: "string",
+          enum: [
+            "property_address",
+            "resident_name",
+            "contact",
+            "income_range",
+            "document",
+            "reminder",
+            "private_detail",
+          ],
+        },
+      },
+      required: ["reason", "field"],
+    },
+  },
+  {
+    type: "function",
+    name: "save_intake_answer",
+    description:
+      "Save at most one current guided-intake fact per resident turn. Allowed fields: property_address, resident_name, contact, owner_occupancy, municipality, notice_type, delinquency_years, hardship, income_range, household_size. Include the resident's source words. Never call for a question, refusal, repeat request, unclear correction, guess, or words Civya supplied. Speak spoken_text exactly.",
+    parameters: {
+      type: "object",
+      properties: {
+        field: {
+          type: "string",
+          enum: [
+            "property_address",
+            "resident_name",
+            "contact",
+            "owner_occupancy",
+            "municipality",
+            "notice_type",
+            "delinquency_years",
+            "hardship",
+            "income_range",
+            "household_size",
+          ],
+        },
+        source_text: { type: "string" },
+      },
+      required: ["field", "source_text"],
+    },
+  },
+] as const;
+
+const DIRECT_END_TOOL = {
+  type: "function",
+  name: "end_or_save_conversation",
+  description:
+    "Call only after the resident clearly confirms they want to end. Save progress and speak the returned final text.",
+  parameters: {
+    type: "object",
+    properties: {
+      reason: { type: "string", enum: ["resident_done", "callback_scheduled", "completed"] },
+    },
+    required: ["reason"],
+  },
+} as const;
+
+function cloneAndFreeze<T>(tools: T): T {
+  const clone = JSON.parse(JSON.stringify(tools)) as T;
+  const freeze = (value: unknown): void => {
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) return;
+    for (const child of Object.values(value as Record<string, unknown>)) freeze(child);
+    Object.freeze(value);
+  };
+  freeze(clone);
+  return clone;
+}
+
+const DIRECT_REALTIME_TOOLS = [
+  ...DIRECT_CONTROL_TOOLS,
+  ...REALTIME_TOOLS,
+  DIRECT_END_TOOL,
+] as const;
+
+/** Improved direct-response profile. This is a distinct frozen tool manifest. */
+export const FAST_REALTIME_TOOLS = cloneAndFreeze(DIRECT_REALTIME_TOOLS);
+
+/** July 14 compatibility profile. Keep independent from future fast edits. */
+export const LEGACY_FAST_REALTIME_TOOLS = cloneAndFreeze(DIRECT_REALTIME_TOOLS);
