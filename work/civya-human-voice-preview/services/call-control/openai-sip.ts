@@ -15,7 +15,7 @@ import {
   type PhoneRouterState,
 } from "./phone-router";
 
-const MODEL = "gpt-realtime-2.1";
+const MODEL = "gpt-realtime-2.1-mini";
 const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 const DEFAULT_VOICE = "marin";
 const CALL_ID = /^[A-Za-z0-9_-]{6,200}$/;
