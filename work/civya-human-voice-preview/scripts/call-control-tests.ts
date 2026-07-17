@@ -579,6 +579,34 @@ async function testCallControlActivationAndClaims(): Promise<void> {
   assert.equal(publicJobs.claims[0]?.redactedPayload?.participant_alias, "public-caller");
   assert.equal(publicJobs.claims[0]?.redactedPayload?.admission_mode, "public");
   assert.doesNotMatch(JSON.stringify(publicJobs.claims[0]?.redactedPayload), /13135559876/);
+
+  configuredPublicPstnEnvironment();
+  process.env.CIVYA_PSTN_PUBLIC_CALLS_PER_HOUR = "20";
+  const repeatCallerEvents = Array.from({ length: 4 }, (_, index) => ({
+    ...incomingEvent,
+    id: `evt_repeat_caller_${index + 1}`,
+    data: { ...incomingEvent.data, call_id: `call_repeat_caller_${index + 1}` },
+  }));
+  let repeatCallerEventIndex = 0;
+  const repeatCallerEffects: string[] = [];
+  const repeatCallerJobs = fakeJobs(baseClaim);
+  const repeatCallerController = new OpenAISipController(repeatCallerJobs.jobs, {
+    verifyWebhook: async () => repeatCallerEvents[repeatCallerEventIndex++]!,
+    fetch: (async (input, init) => {
+      const operation = String(input).split("/").at(-1);
+      repeatCallerEffects.push(`${operation}:${JSON.parse(String(init?.body)).status_code ?? ""}`);
+      return new Response(null, { status: 200 });
+    }) as typeof fetch,
+    attachCall: async () => undefined,
+  });
+  for (let callIndex = 0; callIndex < repeatCallerEvents.length; callIndex += 1) {
+    assert.deepEqual(
+      await repeatCallerController.handleWebhook(`repeat-caller-${callIndex + 1}`, new Headers()),
+      { status: 200, body: { accepted: true } },
+    );
+  }
+  assert.deepEqual(repeatCallerEffects, ["accept:", "accept:", "accept:", "accept:"]);
+  assert.equal(repeatCallerController.snapshot().counters.rejectedRateLimit, 0);
 }
 
 async function main(): Promise<void> {

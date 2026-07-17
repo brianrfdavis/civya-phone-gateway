@@ -965,7 +965,7 @@ export class OpenAISipController {
       if (recent.length === 0) this.publicCallStarts.delete(digest);
       else this.publicCallStarts.set(digest, recent);
     }
-    const limit = boundedInteger(process.env.CIVYA_PSTN_PUBLIC_CALLS_PER_HOUR, 3, 1, 20);
+    const limit = boundedInteger(process.env.CIVYA_PSTN_PUBLIC_CALLS_PER_HOUR, 20, 1, 20);
     const starts = this.publicCallStarts.get(participantDigest) ?? [];
     if (starts.length >= limit) return false;
     if (!this.publicCallStarts.has(participantDigest) && this.publicCallStarts.size >= 1_000) {
