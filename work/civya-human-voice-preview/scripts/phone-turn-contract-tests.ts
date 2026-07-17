@@ -83,7 +83,8 @@ const miss = await processPublicPhoneTurn(request, {
   localize: async ({ approvedText }) => ({ locale: "en", confidence: 1, approvedText, status: "source" }),
 });
 assert.equal(miss.intent, "public_information_menu");
-assert.match(miss.approved_speech, /general Wayne County property-tax information/i);
+assert.match(miss.approved_speech, /make sense of the notice/i);
+assert.doesNotMatch(miss.approved_speech, /test phone line|cannot look up|not the Treasurer/i);
 
 const escalated = await processPublicPhoneTurn(request, {
   resolve: async () => ({

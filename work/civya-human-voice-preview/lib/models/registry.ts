@@ -1,4 +1,9 @@
-export type ModelTask = "realtime_voice" | "transcription" | "intent_extraction" | "grounded_summary";
+export type ModelTask =
+  | "realtime_voice"
+  | "transcription"
+  | "intent_extraction"
+  | "grounded_summary"
+  | "official_research";
 
 export interface ModelTaskPolicy {
   task: ModelTask;
@@ -49,6 +54,16 @@ const registry: Record<ModelTask, ModelTaskPolicy> = {
     maxInputTokens: 6_000,
     requiresStructuredOutput: true,
     fallback: "human",
+  },
+  official_research: {
+    task: "official_research",
+    defaultModel: "gpt-5.6-luna",
+    allowedData: ["redacted_public_question", "allowlisted_official_source_results"],
+    prohibitedAuthority: ["private_case", "identity", "eligibility", "payment", "routing", "completion"],
+    maxLatencyMs: 4_500,
+    maxInputTokens: 2_000,
+    requiresStructuredOutput: true,
+    fallback: "deterministic",
   },
 };
 

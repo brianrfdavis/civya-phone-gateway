@@ -1,4 +1,5 @@
 import { readCanaryTesters } from "./canary";
+import { PHONE_MODEL_ALLOWLIST, PHONE_VOICE_ALLOWLIST } from "./phone-fast";
 
 export interface PstnRuntimeState {
   enabled: boolean;
@@ -39,6 +40,18 @@ export function readPstnRuntimeState(env: NodeJS.ProcessEnv = process.env): Pstn
   });
   if (mode !== "live") missing.unshift("CIVYA_TELEPHONY_MODE=live");
   if (env.CIVYA_LANGUAGE_MODE !== "live") missing.push("CIVYA_LANGUAGE_MODE=live");
+  const responseMode = env.CIVYA_PHONE_RESPONSE_MODE?.trim();
+  if (responseMode && responseMode !== "phone_fast" && responseMode !== "renderer") {
+    missing.push("CIVYA_PHONE_RESPONSE_MODE=phone_fast|renderer");
+  }
+  const phoneModel = env.CIVYA_PHONE_REALTIME_MODEL?.trim();
+  if (phoneModel && !PHONE_MODEL_ALLOWLIST.has(phoneModel)) {
+    missing.push("CIVYA_PHONE_REALTIME_MODEL=qualified");
+  }
+  const phoneVoice = env.CIVYA_PHONE_REALTIME_VOICE?.trim();
+  if (phoneVoice && !PHONE_VOICE_ALLOWLIST.has(phoneVoice)) {
+    missing.push("CIVYA_PHONE_REALTIME_VOICE=cedar|marin");
+  }
   const accessMode = env.CIVYA_PSTN_ACCESS_MODE?.trim();
   if (accessMode !== "canary" && accessMode !== "public") {
     missing.push("CIVYA_PSTN_ACCESS_MODE=canary|public");

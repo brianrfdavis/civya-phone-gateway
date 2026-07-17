@@ -56,6 +56,22 @@ Two fallbacks stay in the codebase:
 Non-synthetic and production runtimes force `authoritative`, even if another
 mode is requested.
 
+Phone calls use a separate, reversible response profile. They do not inherit
+the browser's `CIVYA_VOICE_MODE`:
+
+- `CIVYA_PHONE_RESPONSE_MODE=phone_fast` is the default. It uses
+  `gpt-realtime-2.1`, Cedar, low reasoning effort, and a 500-millisecond VAD
+  silence window. The model handles ordinary conversation directly and calls
+  `get_official_answer` before stating a current or official date, deadline,
+  rate, program status, contact detail, property or case fact, balance,
+  eligibility result, or completed action.
+- `CIVYA_PHONE_RESPONSE_MODE=renderer` is the explicit rollback. It defaults
+  to `gpt-realtime-2.1-mini`, uses a 650-millisecond silence window, and speaks
+  only the deterministic approved text supplied by call control.
+
+The phone profile never downgrades itself. An operator must select the renderer
+rollback and re-run the phone canary before returning the number to service.
+
 ## 3. The authoritative turn pipeline
 
 Realtime server VAD detects that speech ended, but `create_response` is false.
@@ -157,6 +173,11 @@ The county-demo route accepts only:
 - server VAD silence window: 500 ms;
 - automatic response creation: on for `fast` and `legacy_fast`, off for
   `authoritative`.
+
+These are browser-voice settings. The phone route separately defaults to
+`phone_fast` with `gpt-realtime-2.1` and Cedar. Marin is the only other allowed
+phone voice. The renderer rollback defaults to `gpt-realtime-2.1-mini`; it is
+an explicit operator choice rather than a silent quality downgrade.
 
 The session response includes the requested mode, effective mode, and frozen
 profile version. The client treats the effective mode as immutable, binds each

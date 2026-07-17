@@ -57,7 +57,7 @@ export async function resolveAnswer(
         layer: "L5_human_review",
         escalated: true,
         answer:
-          "I don't want to guess on that — it may need human review. I can help collect the basic details so the right person can follow up.",
+          "This part needs a person's judgment. I can get the next step ready with you now.",
       },
       t0,
     );
@@ -98,7 +98,7 @@ export async function resolveAnswer(
           hit: false,
           layer: "L5_human_review",
           escalated: true,
-          answer: "I don't want to guess on that. A person should review it, and I can help preserve your place while they do.",
+          answer: "A person can help with this part. I can keep your place and help with the next step.",
         }, t0);
       }
       if (decision.reason_code === "matched" && decision.intent && decision.confidence >= 0.85) {

@@ -6,6 +6,16 @@ import type { PublicPhoneTurnRequest, PublicPhoneTurnResult } from "@/lib/phone/
 import { phoneFromSipDestination } from "@/lib/integrations/twilio-messaging-live";
 import { identifyPhoneParticipant, phoneCallReferenceDigest, type PhoneParticipant } from "./canary";
 import { readPstnRuntimeState } from "./config";
+import {
+  buildPhoneRealtimeSession,
+  OFFICIAL_ANSWER_TOOL,
+  phoneProfileVersion,
+  phoneTurnRequiresOfficialLookup,
+  readPhoneModel,
+  readPhoneResponseMode,
+  readPhoneVoice,
+  type PhoneResponseMode,
+} from "./phone-fast";
 import { requestPublicPhoneTurn } from "./phone-turn-client";
 import {
   routePhoneControlTranscript,
@@ -15,9 +25,7 @@ import {
   type PhoneRouterState,
 } from "./phone-router";
 
-const MODEL = "gpt-realtime-2.1";
 const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
-const DEFAULT_VOICE = "marin";
 const CALL_ID = /^[A-Za-z0-9_-]{6,200}$/;
 
 export interface SipWebhookResult {
@@ -50,9 +58,32 @@ export interface OpenAISipControllerOptions {
 interface RealtimeEvent {
   type?: string;
   item_id?: string;
+  response_id?: string;
   transcript?: string;
-  response?: { id?: string; status?: string; output?: Array<{ type?: string }> };
+  response?: {
+    id?: string;
+    status?: string;
+    output?: Array<{
+      id?: string;
+      type?: string;
+      name?: string;
+      call_id?: string;
+      arguments?: string;
+    }>;
+  };
 }
+
+interface DirectPhoneTurn {
+  itemId: string;
+  transcript: string;
+  sequence: number;
+  interruptionGeneration: number;
+  stage: "answer" | "lookup_pending" | "lookup_answer";
+}
+
+type PhoneResponseTask =
+  | { kind: "approved"; route: PhoneRoute }
+  | { kind: "direct"; turn: DirectPhoneTurn };
 
 interface CallAttachmentMetadata {
   participant: PhoneParticipant;
@@ -65,11 +96,15 @@ interface ActiveCall {
   fromUri?: string;
   socket: WebSocket;
   state: PhoneRouterState;
-  queuedRoutes: PhoneRoute[];
+  responseMode: PhoneResponseMode;
+  queuedResponses: PhoneResponseTask[];
   responseInFlight: boolean;
-  activeRoute?: PhoneRoute;
+  activeResponse?: PhoneResponseTask;
   turnChain: Promise<void>;
   inputSequence: number;
+  interruptionGeneration: number;
+  speechGenerationByItemId: Map<string, number>;
+  pendingEffect?: PhoneRoute;
   turnCount: number;
   callReferenceDigest: string;
   participantAlias: string;
@@ -100,6 +135,10 @@ export class OpenAISipController {
     rejectedRateLimit: 0,
     rejectedCapacity: 0,
     phoneTurnFailures: 0,
+    directResponses: 0,
+    officialLookups: 0,
+    officialLookupFailures: 0,
+    supersededLookups: 0,
     languageFallbacks: 0,
     secureLinkRequested: 0,
     transferRequested: 0,
@@ -291,10 +330,14 @@ export class OpenAISipController {
   }
 
   snapshot() {
+    const responseMode = readPhoneResponseMode();
     return {
       activeCalls: this.activeCalls.size,
       pendingCalls: this.pendingCalls.size,
-      model: MODEL,
+      model: readPhoneModel(),
+      voice: readPhoneVoice(),
+      profile: responseMode,
+      profileVersion: phoneProfileVersion(responseMode),
       transcriptionModel: TRANSCRIPTION_MODEL,
       counters: { ...this.metrics },
     };
@@ -328,37 +371,7 @@ export class OpenAISipController {
   }
 
   private async accept(callId: string): Promise<void> {
-    await this.callApi(callId, "accept", {
-      type: "realtime",
-      model: MODEL,
-      reasoning: { effort: "low" },
-      instructions: [
-        "You are Civya's phone voice renderer.",
-        "Never originate advice, facts, amounts, dates, case status, eligibility, identity decisions, or completion claims.",
-        "Automatic response creation is disabled. Speak only the exact approved text provided in each response instruction.",
-        "Do not add, omit, summarize, or paraphrase words. You have no authority to change a case or official record.",
-      ].join(" "),
-      output_modalities: ["audio"],
-      include: ["item.input_audio_transcription.logprobs"],
-      audio: {
-        input: {
-          transcription: {
-            model: TRANSCRIPTION_MODEL,
-            prompt: "Wayne County property tax assistance. Preserve the caller's spoken language.",
-          },
-          turn_detection: {
-            type: "server_vad",
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 650,
-            create_response: false,
-            interrupt_response: true,
-            idle_timeout_ms: 20_000,
-          },
-        },
-        output: { voice: process.env.OPENAI_REALTIME_VOICE?.trim() || DEFAULT_VOICE },
-      },
-    });
+    await this.callApi(callId, "accept", buildPhoneRealtimeSession());
   }
 
   private monitor(
@@ -379,10 +392,13 @@ export class OpenAISipController {
         fromUri,
         socket,
         state: { offeredSecureLink: false, locale: "und" },
-        queuedRoutes: [],
+        responseMode: readPhoneResponseMode(),
+        queuedResponses: [],
         responseInFlight: false,
         turnChain: Promise.resolve(),
         inputSequence: 0,
+        interruptionGeneration: 0,
+        speechGenerationByItemId: new Map(),
         turnCount: 0,
         callReferenceDigest: metadata.callReferenceDigest,
         participantAlias: metadata.participant.alias,
@@ -476,25 +492,112 @@ export class OpenAISipController {
     } catch {
       return;
     }
+    if (event.type === "input_audio_buffer.speech_started") {
+      call.interruptionGeneration += 1;
+      if (event.item_id && CALL_ID.test(event.item_id)) {
+        call.speechGenerationByItemId.set(event.item_id, call.interruptionGeneration);
+      }
+      call.queuedResponses = call.queuedResponses.filter((task) => task.kind === "approved");
+      if (call.pendingEffect) {
+        call.pendingEffect = undefined;
+        call.responseInFlight = false;
+      }
+      if (call.activeResponse?.kind === "direct" && call.activeResponse.turn.stage === "lookup_pending") {
+        // The first Realtime response has already ended with a tool call, so
+        // there is no response.done event left to wait for. Release this slow
+        // lookup immediately; its eventual completion is generation-fenced.
+        call.activeResponse = undefined;
+        call.responseInFlight = false;
+      }
+      return;
+    }
     if (event.type === "conversation.item.input_audio_transcription.completed") {
       const itemId = event.item_id ?? "";
       if (!CALL_ID.test(itemId)) return;
+      const speechGeneration = call.speechGenerationByItemId.get(itemId) ?? call.interruptionGeneration;
+      call.speechGenerationByItemId.delete(itemId);
+      if (speechGeneration !== call.interruptionGeneration) return;
       call.inputSequence += 1;
       const sequence = call.inputSequence;
-      call.queuedRoutes.length = 0;
+      call.queuedResponses = call.queuedResponses.filter((task) => task.kind === "approved");
       call.turnChain = call.turnChain
-        .then(() => this.processTranscript(call, itemId, event.transcript ?? "", sequence))
+        .then(() => this.processTranscript(call, itemId, event.transcript ?? "", sequence, speechGeneration))
         .catch(() => undefined);
       return;
     }
-    if (event.type === "response.done") {
-      const route = call.activeRoute;
-      if (!route) return;
-      call.activeRoute = undefined;
-      const completed = event.response?.status === "completed";
+    if (event.type === "conversation.item.input_audio_transcription.failed") {
+      const itemId = event.item_id ?? "";
+      if (!CALL_ID.test(itemId)) return;
+      const speechGeneration = call.speechGenerationByItemId.get(itemId) ?? call.interruptionGeneration;
+      call.speechGenerationByItemId.delete(itemId);
+      if (speechGeneration !== call.interruptionGeneration) return;
+      call.inputSequence += 1;
+      call.turnCount += 1;
+      if (!readPstnRuntimeState().enabled) {
+        call.outcome = "kill_switch";
+        this.enqueueSpeech(call, unavailablePhoneRoute());
+        return;
+      }
+      if (call.turnCount > boundedInteger(process.env.CIVYA_PSTN_MAX_TURNS, 30, 1, 100)) {
+        call.outcome = "maximum_turns";
+        this.enqueueSpeech(call, maximumTurnsPhoneRoute());
+        return;
+      }
+      if (call.responseMode === "renderer") {
+        this.enqueueSpeech(call, {
+          intent: "menu",
+          approvedSpeech: "I didn't catch that. Please say it again.",
+          effect: "none",
+          offerSecureLink: false,
+          locale: call.state.locale === "es" ? "es" : "en",
+        });
+        return;
+      }
+      this.enqueueDirectResponse(call, {
+        itemId,
+        transcript: "",
+        sequence: call.inputSequence,
+        interruptionGeneration: speechGeneration,
+        stage: "answer",
+      });
+      return;
+    }
+    if (event.type === "output_audio_buffer.stopped") {
+      const effect = call.pendingEffect;
+      if (!effect) return;
+      call.pendingEffect = undefined;
       void (async () => {
         try {
-          if (completed) await this.applyEffectAfterSpeech(call, route);
+          await this.applyEffectAfterSpeech(call, effect);
+        } finally {
+          call.responseInFlight = false;
+          this.flush(call);
+        }
+      })();
+      return;
+    }
+    if (event.type === "response.done") {
+      const active = call.activeResponse;
+      if (!active) return;
+      const completed = event.response?.status === "completed";
+      const functionCall = event.response?.output?.find((item) => item.type === "function_call");
+      if (completed && active.kind === "direct" && active.turn.stage === "answer" && functionCall) {
+        const lookupTurn = { ...active.turn, stage: "lookup_pending" as const };
+        call.activeResponse = { kind: "direct", turn: lookupTurn };
+        void this.handleOfficialLookup(call, lookupTurn, functionCall)
+          .catch(() => this.releaseDirectResponse(call, lookupTurn));
+        return;
+      }
+      call.activeResponse = undefined;
+      if (completed && active.kind === "approved" && active.route.effect !== "none") {
+        // Generation is complete, but SIP may still be playing buffered audio.
+        // Apply transfer, link, or hangup only after playback has drained.
+        call.pendingEffect = active.route;
+        return;
+      }
+      void (async () => {
+        try {
+          if (completed && active.kind === "direct") this.metrics.directResponses += 1;
         } finally {
           call.responseInFlight = false;
           this.flush(call);
@@ -503,40 +606,46 @@ export class OpenAISipController {
     }
   }
 
-  private async processTranscript(call: ActiveCall, itemId: string, transcript: string, sequence: number): Promise<void> {
+  private async processTranscript(
+    call: ActiveCall,
+    itemId: string,
+    transcript: string,
+    sequence: number,
+    speechGeneration: number,
+  ): Promise<void> {
     if (!readPstnRuntimeState().enabled) {
       call.outcome = "kill_switch";
-      this.enqueueSpeech(call, {
-        intent: "end",
-        approvedSpeech: "This test phone service has been turned off. No official action was completed. Please try the secure website or contact the Treasurer's Office directly.",
-        effect: "end_call",
-        offerSecureLink: false,
-        locale: "en",
-      });
+      this.enqueueSpeech(call, unavailablePhoneRoute());
       return;
     }
     call.turnCount += 1;
     const maximumTurns = boundedInteger(process.env.CIVYA_PSTN_MAX_TURNS, 30, 1, 100);
     if (call.turnCount > maximumTurns) {
       call.outcome = "maximum_turns";
-      this.enqueueSpeech(call, {
-        intent: "end",
-        approvedSpeech: "This test call has reached its turn limit. No official action was completed. Please continue through the secure website or ask a person for help.",
-        effect: "end_call",
-        offerSecureLink: false,
-        locale: "en",
-      });
+      this.enqueueSpeech(call, maximumTurnsPhoneRoute());
       return;
     }
 
-    const control = routePhoneControlTranscript(transcript, call.state);
+    const normalizedTranscript = transcript.trim().slice(0, 2_000);
+    if (!normalizedTranscript) return;
+    const control = routePhoneControlTranscript(normalizedTranscript, call.state);
     let route: PhoneRoute;
     if (control) {
       route = control;
+    } else if (call.responseMode === "phone_fast") {
+      if (sequence !== call.inputSequence) return;
+      this.enqueueDirectResponse(call, {
+        itemId,
+        transcript: normalizedTranscript,
+        sequence,
+        interruptionGeneration: speechGeneration,
+        stage: "answer",
+      });
+      return;
     } else {
       try {
         const result = await this.requestPhoneTurn({
-          transcript: transcript.trim().slice(0, 2_000),
+          transcript: normalizedTranscript,
           call_reference_digest: call.callReferenceDigest,
           provider_item_id: itemId,
           idempotency_key: `phone_turn_${call.callReferenceDigest}_${itemId}`,
@@ -552,12 +661,142 @@ export class OpenAISipController {
         };
       } catch {
         this.metrics.phoneTurnFailures += 1;
-        route = routePhoneTranscript(transcript, call.state);
+        route = routePhoneTranscript(normalizedTranscript, call.state);
       }
     }
     if (sequence !== call.inputSequence) return;
     call.state = { offeredSecureLink: route.offerSecureLink, locale: route.locale };
     this.enqueueSpeech(call, route);
+  }
+
+  private async handleOfficialLookup(
+    call: ActiveCall,
+    turn: DirectPhoneTurn,
+    functionCall: NonNullable<NonNullable<RealtimeEvent["response"]>["output"]>[number],
+  ): Promise<void> {
+    const callId = functionCall.call_id ?? "";
+    const validArguments = (() => {
+      try {
+        const parsed = JSON.parse(functionCall.arguments ?? "{}");
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.keys(parsed).length === 0;
+      } catch {
+        return false;
+      }
+    })();
+    if (functionCall.name !== "get_official_answer" || !CALL_ID.test(callId) || !validArguments) {
+      this.metrics.officialLookupFailures += 1;
+      if (CALL_ID.test(callId)) {
+        this.sendFunctionOutput(call, callId, {
+          ok: false,
+          message: "The lookup request was invalid. Offer to try again or reach a person.",
+        });
+        if (!this.advanceLookupResponse(call, turn)) return;
+        this.sendNoToolResponse(call, "Say briefly that the lookup did not work, then offer to try again or reach a person.");
+        return;
+      }
+      this.releaseDirectResponse(call, turn);
+      return;
+    }
+
+    this.metrics.officialLookups += 1;
+    try {
+      const result = await this.requestPhoneTurn({
+        transcript: turn.transcript,
+        call_reference_digest: call.callReferenceDigest,
+        provider_item_id: callId,
+        idempotency_key: `phone_turn_${call.callReferenceDigest}_${callId}`,
+        locale_hint: call.state.locale,
+      });
+      if (turn.sequence !== call.inputSequence || turn.interruptionGeneration !== call.interruptionGeneration) {
+        this.metrics.supersededLookups += 1;
+        this.sendFunctionOutput(call, callId, { ok: false, superseded: true });
+        this.releaseDirectResponse(call, turn);
+        return;
+      }
+      if (result.source === "deterministic_policy" && result.intent === "public_information_menu") {
+        this.metrics.officialLookupFailures += 1;
+        this.sendFunctionOutput(call, callId, {
+          ok: false,
+          unsupported: true,
+          message: "The current official answer could not be verified. Offer to try again or reach a person.",
+        });
+        if (!this.advanceLookupResponse(call, turn)) return;
+        this.sendNoToolResponse(
+          call,
+          "Say briefly that you could not verify the current answer. Offer to try again or reach a person. Do not ask the caller to repeat the same question and do not recite a disclaimer.",
+        );
+        return;
+      }
+      if (result.language_status === "fallback") this.metrics.languageFallbacks += 1;
+      call.state = { offeredSecureLink: result.offer_secure_link, locale: result.locale };
+      this.sendFunctionOutput(call, callId, {
+        ok: true,
+        answer_will_be_delivered_by_call_control: true,
+      });
+      this.finishDirectWithApprovedSpeech(call, turn, {
+        intent: result.escalated ? "urgent_notice" : "menu",
+        approvedSpeech: result.approved_speech,
+        effect: "none",
+        offerSecureLink: result.offer_secure_link,
+        locale: result.locale,
+      });
+    } catch {
+      this.metrics.phoneTurnFailures += 1;
+      this.metrics.officialLookupFailures += 1;
+      this.sendFunctionOutput(call, callId, {
+        ok: false,
+        message: "Current official information was not available. Offer to try again or reach a person.",
+      });
+      if (!this.advanceLookupResponse(call, turn)) return;
+      this.sendNoToolResponse(call, "Say briefly that you could not pull up the current information. Offer to try again or reach a person. Do not recite a disclaimer.");
+    }
+  }
+
+  private sendFunctionOutput(call: ActiveCall, callId: string, output: Record<string, unknown>): void {
+    call.socket.send(JSON.stringify({
+      type: "conversation.item.create",
+      item: {
+        type: "function_call_output",
+        call_id: callId,
+        output: JSON.stringify(output),
+      },
+    }));
+  }
+
+  private sendNoToolResponse(call: ActiveCall, instructions: string): void {
+    call.socket.send(JSON.stringify({
+      type: "response.create",
+      response: {
+        output_modalities: ["audio"],
+        tools: [],
+        tool_choice: "none",
+        max_output_tokens: 256,
+        instructions,
+      },
+    }));
+  }
+
+  private advanceLookupResponse(call: ActiveCall, turn: DirectPhoneTurn): boolean {
+    const active = call.activeResponse;
+    if (active?.kind !== "direct" || active.turn.sequence !== turn.sequence) return false;
+    call.activeResponse = { kind: "direct", turn: { ...turn, stage: "lookup_answer" } };
+    return true;
+  }
+
+  private finishDirectWithApprovedSpeech(call: ActiveCall, turn: DirectPhoneTurn, route: PhoneRoute): void {
+    const active = call.activeResponse;
+    if (active?.kind !== "direct" || active.turn.sequence !== turn.sequence) return;
+    call.activeResponse = undefined;
+    call.responseInFlight = false;
+    this.enqueueSpeech(call, route);
+  }
+
+  private releaseDirectResponse(call: ActiveCall, turn: DirectPhoneTurn): void {
+    const active = call.activeResponse;
+    if (active?.kind !== "direct" || active.turn.sequence !== turn.sequence) return;
+    call.activeResponse = undefined;
+    call.responseInFlight = false;
+    this.flush(call);
   }
 
   private async applyEffectAfterSpeech(call: ActiveCall, route: PhoneRoute): Promise<void> {
@@ -624,21 +863,44 @@ export class OpenAISipController {
   }
 
   private enqueueSpeech(call: ActiveCall, route: PhoneRoute): void {
-    call.queuedRoutes.push(route);
+    call.queuedResponses.push({ kind: "approved", route });
+    this.flush(call);
+  }
+
+  private enqueueDirectResponse(call: ActiveCall, turn: DirectPhoneTurn): void {
+    call.queuedResponses.push({ kind: "direct", turn });
     this.flush(call);
   }
 
   private flush(call: ActiveCall): void {
     if (call.responseInFlight || call.socket.readyState !== WebSocket.OPEN) return;
-    const route = call.queuedRoutes.shift();
-    if (!route) return;
+    const task = call.queuedResponses.shift();
+    if (!task) return;
     call.responseInFlight = true;
-    call.activeRoute = route;
+    call.activeResponse = task;
+    if (task.kind === "approved") {
+      call.socket.send(JSON.stringify({
+        type: "response.create",
+        response: {
+          input: [],
+          output_modalities: ["audio"],
+          tools: [],
+          tool_choice: "none",
+          max_output_tokens: 256,
+          instructions: `Speak exactly this text with warmth and no additions or changes:\n\n${task.route.approvedSpeech}`,
+        },
+      }));
+      return;
+    }
     call.socket.send(JSON.stringify({
       type: "response.create",
       response: {
         output_modalities: ["audio"],
-        instructions: `Speak exactly this approved text with no additions or changes:\n\n${route.approvedSpeech}`,
+        max_output_tokens: 256,
+        ...(phoneTurnRequiresOfficialLookup(task.turn.transcript) ? {
+          tools: [OFFICIAL_ANSWER_TOOL],
+          tool_choice: "required",
+        } : {}),
       },
     }));
   }
@@ -762,6 +1024,26 @@ function fallbackLinkRoute(locale: string): PhoneRoute {
   return locale === "es"
     ? { intent: "secure_link", effect: "none", offerSecureLink: false, locale, approvedSpeech: "No pude enviar el enlace. No comparta información privada por teléfono. Puedo intentar comunicarle con una persona." }
     : { intent: "secure_link", effect: "none", offerSecureLink: false, locale, approvedSpeech: "I couldn't send the link. Please don't share private information over the phone. I can try to connect you with a person." };
+}
+
+function unavailablePhoneRoute(): PhoneRoute {
+  return {
+    intent: "end",
+    approvedSpeech: "Civya is unavailable right now. Please try again later or contact the Treasurer's Office.",
+    effect: "end_call",
+    offerSecureLink: false,
+    locale: "en",
+  };
+}
+
+function maximumTurnsPhoneRoute(): PhoneRoute {
+  return {
+    intent: "end",
+    approvedSpeech: "We've reached the end of this call. Please call back, use the secure website, or ask for a person if you still need help.",
+    effect: "end_call",
+    offerSecureLink: false,
+    locale: "en",
+  };
 }
 
 function boundedInteger(raw: string | undefined, fallback: number, minimum: number, maximum: number): number {

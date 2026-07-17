@@ -4,6 +4,11 @@ import {
   OpenAIApprovedSpeechLocalizer,
   type ApprovedSpeechLocalization,
 } from "@/lib/integrations/openai-language.server";
+import {
+  containsPrivateResearchQuestion,
+  OpenAIOfficialSourceResearch,
+  type OfficialResearchAnswer,
+} from "@/lib/integrations/openai-official-research.server";
 import { redactTranscript } from "@/lib/platform/redaction";
 
 const DIGEST = /^[0-9a-f]{64}$/;
@@ -34,13 +39,19 @@ export interface PublicPhoneTurnResult {
   effect: PublicPhoneEffect;
   offer_secure_link: boolean;
   escalated: boolean;
-  source: "deterministic_policy" | "approved_content";
+  source: "deterministic_policy" | "approved_content" | "official_research";
   source_layer: string;
+  source_response_id?: string;
+  source_domains?: string[];
   may_change_case_state: false;
 }
 
 export interface PublicPhoneTurnDependencies {
   resolve?: typeof resolveAnswer;
+  research?: (input: {
+    question: string;
+    safetyIdentifier: string;
+  }) => Promise<OfficialResearchAnswer | null>;
   localize?: (input: {
     approvedText: string;
     callerText: string;
@@ -100,11 +111,21 @@ export function validatePublicPhoneTurnResult(value: unknown, expectedItemId?: s
   if (typeof result.offer_secure_link !== "boolean" || typeof result.escalated !== "boolean") {
     throw new Error("invalid_phone_turn_flags");
   }
-  if (!new Set(["deterministic_policy", "approved_content"]).has(String(result.source))) {
+  if (!new Set(["deterministic_policy", "approved_content", "official_research"]).has(String(result.source))) {
     throw new Error("invalid_phone_turn_source");
   }
   if (typeof result.source_layer !== "string" || result.source_layer.length > 80 || result.may_change_case_state !== false) {
     throw new Error("invalid_phone_turn_authority");
+  }
+  if (result.source_response_id !== undefined
+      && (typeof result.source_response_id !== "string" || !/^resp_[A-Za-z0-9_-]{4,200}$/.test(result.source_response_id))) {
+    throw new Error("invalid_phone_turn_provenance");
+  }
+  if (result.source_domains !== undefined) {
+    if (!Array.isArray(result.source_domains) || result.source_domains.length > 8
+        || result.source_domains.some((domain) => typeof domain !== "string" || !/^[a-z0-9.-]{1,253}$/.test(domain))) {
+      throw new Error("invalid_phone_turn_provenance");
+    }
   }
   return result as unknown as PublicPhoneTurnResult;
 }
@@ -117,30 +138,46 @@ export async function processPublicPhoneTurn(
   const safeCallerText = redactTranscript(input.transcript);
   const redactionDetected = /\[(?:EMAIL|PHONE|GOVERNMENT_ID|ADDRESS|PARCEL_ID|NAME|IDENTIFIER)\]/.test(safeCallerText);
   const resolve = dependencies.resolve ?? resolveAnswer;
+  // A supplied resolver owns the complete answer path unless its test or
+  // caller explicitly injects research too. This preserves deterministic
+  // dependency injection without allowing an unexpected live web request.
+  const research = dependencies.research
+    ?? (dependencies.resolve
+      ? null
+      : (value: { question: string; safetyIdentifier: string }) => new OpenAIOfficialSourceResearch().research(value));
   const localize = dependencies.localize ?? ((value) => new OpenAIApprovedSpeechLocalizer().localize(value));
 
   let intent = "public_information_menu";
-  let canonicalSpeech = "I can help with general Wayne County property-tax information. I cannot look up or change a private case on this test phone line. You can ask a general question, request a secure link, or say person for human help.";
+  let canonicalSpeech = "I can help you make sense of the notice and work out the next step. Tell me what it says or what you're trying to do.";
   let effect: PublicPhoneEffect = "none";
   let offerSecureLink = false;
   let escalated = false;
   let source: PublicPhoneTurnResult["source"] = "deterministic_policy";
   let sourceLayer = "public_phone_policy";
+  let sourceResponseId: string | undefined;
+  let sourceDomains: string[] | undefined;
+  let researchedLocalization: ApprovedSpeechLocalization | undefined;
+  let officialResearchAttempted = false;
 
   if (IMMEDIATE_DANGER.test(input.transcript)) {
     intent = "immediate_danger";
-    canonicalSpeech = "Civya is not an emergency service. If anyone is in immediate danger, hang up and call 911 now. For non-emergency help with a tax notice, ask for a person.";
+    canonicalSpeech = "If anyone is in immediate danger, hang up and call 911 now. I can help with the property-tax issue once everyone is safe.";
     effect = "offer_human";
     escalated = true;
-  } else if (containsSensitiveMaterial(input.transcript) || redactionDetected) {
+  } else if (containsSensitiveMaterial(input.transcript)
+      || redactionDetected
+      || containsPrivateResearchQuestion(input.transcript)) {
     intent = "sensitive_information_blocked";
-    canonicalSpeech = "For your privacy, I cannot use personal, payment, or case-specific details on this test phone line. I can send a secure link so you can sign in and continue safely, or you can ask for a person.";
+    canonicalSpeech = "Let's keep private details off the phone line. I can text you a secure link so we can keep working, or connect you with a person.";
     effect = "offer_secure_link";
     offerSecureLink = true;
   } else {
     const resolved = await resolve(safeCallerText, "voice", {
       safetyIdentifier: input.call_reference_digest.slice(0, 48),
-      languageMode: "live",
+      // The Realtime model already chose the official-fact lane. Keep this
+      // pass to local approved content only; never spend the phone deadline on
+      // a second intent/embedding model before current-source research.
+      languageMode: "synthetic",
     });
     if ((resolved.hit || resolved.escalated) && resolved.answer) {
       intent = SAFE_INTENT.test(resolved.intent ?? "") ? resolved.intent! : "approved_public_answer";
@@ -150,19 +187,50 @@ export async function processPublicPhoneTurn(
       offerSecureLink = resolved.escalated;
       source = resolved.hit ? "approved_content" : "deterministic_policy";
       sourceLayer = resolved.layer;
+    } else if (!resolved.escalated && research) {
+      officialResearchAttempted = true;
+      try {
+        const researched = await research({
+          question: safeCallerText,
+          safetyIdentifier: input.call_reference_digest.slice(0, 48),
+        });
+        if (researched) {
+          intent = "official_public_answer";
+          canonicalSpeech = researched.spokenAnswer;
+          source = "official_research";
+          sourceLayer = "L4_official_web_search";
+          sourceResponseId = researched.responseId;
+          sourceDomains = [...researched.sourceDomains];
+          researchedLocalization = {
+            locale: researched.locale,
+            confidence: 1,
+            approvedText: researched.spokenAnswer,
+            status: "source",
+          };
+        }
+      } catch {
+        // Timeouts, provider errors, unsupported answers, missing citations,
+        // or unsafe formatting fail closed to the existing public menu.
+      }
     }
   }
 
-  let localized: ApprovedSpeechLocalization;
-  try {
-    localized = await localize({
-      approvedText: canonicalSpeech,
-      callerText: safeCallerText,
-      localeHint: input.locale_hint,
-      safetyIdentifier: input.call_reference_digest.slice(0, 48),
-    });
-  } catch {
-    localized = { locale: "en", confidence: 0, approvedText: canonicalSpeech, status: "fallback" };
+  let localized = researchedLocalization;
+  if (!localized) {
+    if (officialResearchAttempted && source === "deterministic_policy" && intent === "public_information_menu") {
+      localized = { locale: "en", confidence: 0, approvedText: canonicalSpeech, status: "fallback" };
+    } else {
+      try {
+        localized = await localize({
+          approvedText: canonicalSpeech,
+          callerText: safeCallerText,
+          localeHint: input.locale_hint,
+          safetyIdentifier: input.call_reference_digest.slice(0, 48),
+        });
+      } catch {
+        localized = { locale: "en", confidence: 0, approvedText: canonicalSpeech, status: "fallback" };
+      }
+    }
   }
 
   return validatePublicPhoneTurnResult({
@@ -179,6 +247,8 @@ export async function processPublicPhoneTurn(
     escalated,
     source,
     source_layer: sourceLayer,
+    ...(sourceResponseId ? { source_response_id: sourceResponseId } : {}),
+    ...(sourceDomains ? { source_domains: sourceDomains } : {}),
     may_change_case_state: false,
   }, input.provider_item_id);
 }

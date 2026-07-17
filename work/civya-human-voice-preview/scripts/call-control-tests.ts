@@ -9,13 +9,22 @@ import {
   buildRealtimeConnectionHeaders,
   OpenAISipController,
 } from "../services/call-control/openai-sip";
+import { PHONE_FAST_INSTRUCTIONS } from "../services/call-control/phone-fast";
 import { routePhoneTranscript, welcomePhoneRoute } from "../services/call-control/phone-router";
 
 const state = { offeredSecureLink: false, locale: "en" as const };
 
 assert.equal(welcomePhoneRoute().intent, "welcome");
-assert.match(welcomePhoneRoute().approvedSpeech, /automated assistant/i);
-assert.match(welcomePhoneRoute().approvedSpeech, /can't change an official record/i);
+assert.match(welcomePhoneRoute().approvedSpeech, /help you understand/i);
+assert.match(welcomePhoneRoute().approvedSpeech, /best next step/i);
+assert.match(welcomePhoneRoute().approvedSpeech, /AI assistant/i);
+assert.doesNotMatch(
+  welcomePhoneRoute().approvedSpeech,
+  /not the treasurer|official record|test call|disclaimer/i,
+);
+assert.match(PHONE_FAST_INSTRUCTIONS, /fast, capable voice advocate/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /Answer first/i);
+assert.doesNotMatch(PHONE_FAST_INSTRUCTIONS, /You are not the Wayne County Treasurer/i);
 
 const urgent = routePhoneTranscript("I got a foreclosure notice with a deadline", state);
 assert.equal(urgent.intent, "urgent_notice");
@@ -33,6 +42,22 @@ assert.match(document.approvedSpeech, /private and quarantined/i);
 
 const human = routePhoneTranscript("I need to talk to a person", state);
 assert.equal(human.effect, "transfer_human");
+for (const naturalRequest of [
+  "Put me through to the Treasurer's office",
+  "I need to talk to somebody",
+  "Can you transfer me?",
+]) {
+  assert.equal(routePhoneTranscript(naturalRequest, state).effect, "transfer_human", naturalRequest);
+}
+for (const mentionOnly of [
+  "An agent told me to call about my notice",
+  "What can a person do?",
+  "I don't want to speak to somebody",
+]) {
+  assert.notEqual(routePhoneTranscript(mentionOnly, state).effect, "transfer_human", mentionOnly);
+}
+assert.notEqual(routePhoneTranscript("Don't text me a link", state).effect, "send_secure_link");
+assert.notEqual(routePhoneTranscript("Please don't hang up", state).effect, "end_call");
 
 const link = routePhoneTranscript("yes", { offeredSecureLink: true, locale: "en" });
 assert.equal(link.effect, "send_secure_link");
@@ -93,6 +118,9 @@ const PSTN_ENVIRONMENT_KEYS = [
   "CIVYA_PSTN_MAX_DURATION_SECONDS",
   "CIVYA_CALL_RECORDING_MODE",
   "CIVYA_LANGUAGE_MODE",
+  "CIVYA_PHONE_RESPONSE_MODE",
+  "CIVYA_PHONE_REALTIME_MODEL",
+  "CIVYA_PHONE_REALTIME_VOICE",
 ] as const;
 const originalPstnEnvironment = Object.fromEntries(
   PSTN_ENVIRONMENT_KEYS.map((key) => [key, process.env[key]]),
@@ -289,6 +317,18 @@ async function testCallControlActivationAndClaims(): Promise<void> {
     assert.ok(malformedState.missing.includes("CIVYA_TWILIO_PHONE_NUMBER"));
   }
 
+  for (const [key, value, expected] of [
+    ["CIVYA_PHONE_RESPONSE_MODE", "anything", "CIVYA_PHONE_RESPONSE_MODE=phone_fast|renderer"],
+    ["CIVYA_PHONE_REALTIME_MODEL", "unqualified-model", "CIVYA_PHONE_REALTIME_MODEL=qualified"],
+    ["CIVYA_PHONE_REALTIME_VOICE", "unknown-voice", "CIVYA_PHONE_REALTIME_VOICE=cedar|marin"],
+  ] as const) {
+    configuredPstnEnvironment();
+    process.env[key] = value;
+    const invalidProfileState = readPstnRuntimeState();
+    assert.equal(invalidProfileState.configured, false, `${key} must fail closed`);
+    assert.ok(invalidProfileState.missing.includes(expected));
+  }
+
   await assertDestinationRejected(
     "sip:+131355501230@trunk.example",
     "longer_prefix",
@@ -411,10 +451,26 @@ async function testCallControlActivationAndClaims(): Promise<void> {
         model: string;
         reasoning: { effort: string };
         instructions: string;
+        max_output_tokens: number;
+        tools: Array<{ name: string; parameters: { additionalProperties: boolean } }>;
+        tool_choice: string;
+        audio: {
+          input: { turn_detection: { silence_duration_ms: number; create_response: boolean } };
+          output: { voice: string };
+        };
       };
       assert.equal(request.model, "gpt-realtime-2.1");
       assert.deepEqual(request.reasoning, { effort: "low" });
-      assert.match(request.instructions, /Never originate advice/);
+      assert.match(request.instructions, /capable voice advocate/i);
+      assert.match(request.instructions, /Answer first/i);
+      assert.doesNotMatch(request.instructions, /Never originate advice|not the Treasurer/i);
+      assert.equal(request.max_output_tokens, 256);
+      assert.equal(request.tool_choice, "auto");
+      assert.deepEqual(request.tools.map((tool) => tool.name), ["get_official_answer"]);
+      assert.equal(request.tools[0]?.parameters.additionalProperties, false);
+      assert.equal(request.audio.input.turn_detection.silence_duration_ms, 500);
+      assert.equal(request.audio.input.turn_detection.create_response, false);
+      assert.equal(request.audio.output.voice, "cedar");
       order.push("accept");
       return new Response(null, { status: 200 });
     }) as typeof fetch,

@@ -21,6 +21,12 @@ Caller
 
 The code path is fail-closed and has public admission with per-caller digest limits, approved multilingual speech, a 10-minute call limit, signed-webhook verification, durable turn/event deduplication, secure-link fallback, and human transfer. It never gives the phone model authority to change a case. **It is not activatable merely because those controls exist.**
 
+The default response profile is `phone_fast`: `gpt-realtime-2.1` with Cedar
+handles ordinary conversation, while current and official claims must come
+through Civya's signed public-answer boundary. The rollback profile is
+`renderer`: `gpt-realtime-2.1-mini` speaks only deterministic approved text.
+This rollback is an explicit configuration change, never a silent downgrade.
+
 ## Readiness and ownership
 
 | State | What is in that state | Owner needed to advance |
@@ -140,6 +146,20 @@ References: [Render deploys and rollback](https://render.com/docs/deploys#rollin
 7. Send dashboard test events, a locally signed invalid event, a stale event, and a duplicate event. Capture redacted evidence.
 8. Rotate a webhook secret in staging. Update both destinations as one change, test, then retire the previous secret. If either destination differs, keep PSTN disabled.
 
+Set and record the phone response profile independently of browser voice:
+
+| Setting | Normal `phone_fast` profile | Renderer rollback |
+| --- | --- | --- |
+| `CIVYA_PHONE_RESPONSE_MODE` | `phone_fast` | `renderer` |
+| `CIVYA_PHONE_REALTIME_MODEL` | `gpt-realtime-2.1` | `gpt-realtime-2.1-mini` |
+| `CIVYA_PHONE_REALTIME_VOICE` | `cedar` | `cedar` or qualified `marin` |
+
+Changing one of these values requires a new canary call that checks the
+profile, model, voice, greeting, ordinary conversation, official lookup,
+interruption, secure link, human transfer, and privacy-safe metrics. Do not
+route callers to automation if the observed profile differs from the recorded
+release configuration.
+
 References: [OpenAI Realtime SIP](https://developers.openai.com/api/docs/guides/realtime-sip) and [OpenAI webhook verification, retries, deduplication, and rotation](https://developers.openai.com/api/docs/guides/webhooks).
 
 ## 3. Configure Twilio number and Elastic SIP trunk
@@ -248,10 +268,11 @@ Any missing item is a no-go.
 
 1. At the carrier layer, detach the canary number from the OpenAI trunk or route it to the approved human/announcement destination. Do this first so callers do not encounter repeated webhook failures.
 2. Set `CIVYA_ENABLE_PSTN=false` and `CIVYA_TELEPHONY_MODE=disabled`; deploy the configuration and verify `/health/ready` reports PSTN inactive.
-3. If the issue is limited to the call-control release, roll Render back to the pinned prior artifact. Keep the number off automation until the full canary passes.
-4. If a key or webhook secret is compromised, rotate it in the provider dashboard and both receiving services. Keep PSTN disabled during the cutover.
-5. Preserve durable provider events and reconcile calls accepted before the cutoff. Do not delete uncertain events or mark transfers/SMS as successful without provider evidence.
-6. Verify web general-information, account recovery, human support, and case-entitlement paths remain available.
-7. Record trigger, timestamps, provider/config/artifact versions, affected call references as hashes, spend, resident impact, and recovery evidence.
+3. If the issue is limited to `phone_fast`, set `CIVYA_PHONE_RESPONSE_MODE=renderer` and `CIVYA_PHONE_REALTIME_MODEL=gpt-realtime-2.1-mini`. Deploy while the number remains off automation, then pass the renderer canary before reconnecting it.
+4. If the issue is in call control rather than the response profile, roll Render back to the pinned prior artifact. Keep the number off automation until the full canary passes.
+5. If a key or webhook secret is compromised, rotate it in the provider dashboard and both receiving services. Keep PSTN disabled during the cutover.
+6. Preserve durable provider events and reconcile calls accepted before the cutoff. Do not delete uncertain events or mark transfers/SMS as successful without provider evidence.
+7. Verify web general-information, account recovery, human support, and case-entitlement paths remain available.
+8. Record trigger, timestamps, provider/config/artifact versions, affected call references as hashes, spend, resident impact, and recovery evidence.
 
 Reactivation requires a new independent go/no-go decision.

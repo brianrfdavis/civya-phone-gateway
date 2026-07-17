@@ -135,7 +135,7 @@ assert.equal(evaluateActivation({
   criticalAccessibilityBlocker: false,
 }).nextStage, "disabled");
 
-assert.equal(listModelTaskPolicies().length, 4);
+assert.equal(listModelTaskPolicies().length, 5);
 for (const policy of listModelTaskPolicies()) {
   assert.ok(policy.prohibitedAuthority.includes("completion"), `${policy.task} forbids completion authority`);
 }

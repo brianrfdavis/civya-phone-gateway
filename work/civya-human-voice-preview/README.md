@@ -13,7 +13,7 @@ The application is intentionally staged. Code completeness does not activate Cou
 - Durable leased jobs with heartbeats, retries, dead-letter/replay, provider deduplication, outbox delivery, and external-operation idempotency.
 - Entitled resident SMS reminders with explicit per-case consent, quiet-hours and suppression checks, generic secure-link content, crash-safe Twilio acceptance, and signed delivery receipts. Sandbox reminders remain visibly simulated and send nothing.
 - Browser voice with `gpt-realtime-2.1` and server-approved responses; text remains available when voice is unavailable.
-- PSTN call control for Twilio Elastic SIP Trunking → OpenAI Realtime SIP using `gpt-realtime-2.1` with low reasoning effort, signed webhooks, deterministic English/Spanish routing, secure-link and human-transfer fallbacks, and no model authority over consequential decisions.
+- PSTN call control for Twilio Elastic SIP Trunking → OpenAI Realtime SIP. The default `phone_fast` profile uses `gpt-realtime-2.1` with Cedar for ordinary conversation and calls the approved public-answer boundary before stating current or official facts. An explicit `renderer` rollback uses `gpt-realtime-2.1-mini` and speaks only deterministic approved text. Both profiles retain signed webhooks, secure-link and human-transfer controls, and no model authority over consequential decisions.
 - Direct hosted Wayne/J.P. Morgan Chase and DocuSign handoff contracts. Civya never collects card or bank credentials, and a browser return never proves completion.
 - Protected staff operations with host-resolved tenant isolation, confirmed-user email OTP, exact active reviewer/admin roles, owned exceptions, review queues, recovery, workflow controls, and evidence chronology.
 - Split liveness/readiness/dependency health, pause-all and channel/provider kill switches, privacy-safe telemetry, release evidence, rollback, and activation runbooks.
@@ -54,7 +54,8 @@ Resident web/voice ── Vercel Next.js ── Supabase Auth/Postgres/private S
           │
 Phone ── Twilio SIP ── OpenAI Realtime SIP ── Render call-control runtime
                                                │
-                                               ├── approved speech router
+                                               ├── phone_fast conversation + official lookup
+                                               ├── renderer rollback + approved speech
                                                ├── secure web-resume link
                                                └── authorized human transfer
 
