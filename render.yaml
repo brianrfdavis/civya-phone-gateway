@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: civya-runtime
+    runtime: node
+    plan: starter
+    region: ohio
+    rootDir: work/civya-human-voice-preview
+    buildCommand: npm ci
+    startCommand: npm run worker:foundation
+    healthCheckPath: /health/ready
+    maxShutdownDelaySeconds: 60
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.0
+      - key: CIVYA_WORKER_CAPABILITIES
+        value: foundation.healthcheck,foundation.outbox.dispatch
+      - key: CIVYA_WORKER_CONCURRENCY
+        value: "4"
+      - key: CIVYA_WORKER_LEASE_SECONDS
+        value: "60"
+      - key: CIVYA_WORKER_POLL_MS
+        value: "1000"
+      - key: CIVYA_ENABLE_PSTN
+        value: "false"
+      - key: CIVYA_TELEPHONY_MODE
+        value: disabled
+      - key: CIVYA_PSTN_ACCESS_MODE
+        value: public
+      - key: CIVYA_PSTN_PUBLIC_CALLS_PER_HOUR
+        value: "3"
+      - key: CIVYA_PSTN_MAX_CONCURRENT_CALLS
+        value: "2"
+      - key: CIVYA_PSTN_MAX_TURNS
+        value: "20"
+      - key: CIVYA_PSTN_MAX_DURATION_SECONDS
+        value: "600"
+      - key: CIVYA_CALL_RECORDING_MODE
+        value: disabled
+      - key: CIVYA_ENVIRONMENT
+        value: staging
+      - key: CIVYA_ENABLE_TELEMETRY_RECEIVER
+        value: "true"
+      - key: CIVYA_TELEMETRY_INGEST_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # PSTN/provider secrets are intentionally absent while the feature is
+      # disabled. Add the complete phone-activation inventory as one reviewed
+      # change before setting CIVYA_ENABLE_PSTN=true and mode=live.

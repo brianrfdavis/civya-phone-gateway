@@ -1,0 +1,63 @@
+[
+  {
+    "intent": "document_checklist",
+    "approved_spoken_answer": "For most tax-assistance applications you'll want a few basics: a photo ID, proof that you live in the home — like a utility bill — proof of income for everyone in the household, and your most recent tax notice if you have one. Don't worry if you're missing something; we can note what you have and what still needs gathering.",
+    "long_answer": "Common documents for Wayne County and Detroit tax-relief applications (HOPE, PAYS, payment plans) include: government-issued photo ID; proof of residency such as a utility bill or lease; proof of household income (pay stubs, benefit statements, or tax returns) for all adults in the home; the property tax notice or parcel number; and, where relevant, proof of ownership such as a deed. Specific programs may request additional items; application assistance partners can help assemble them.",
+    "disclaimer": "Exact document requirements are set by each program and may vary.",
+    "next_step_prompt": "Would you like me to note which of these you already have and which you still need?",
+    "allowed_next_questions": [
+      "Do you need help uploading documents?",
+      "Would you like a person to follow up?"
+    ],
+    "escalation_triggers": [],
+    "example_utterances": [
+      "What documents do I need?",
+      "I need help with documents",
+      "What paperwork is required?",
+      "What should I bring to apply?"
+    ],
+    "source_url": "https://detroitmi.gov/government/boards/property-assessment-board-review/homeowners-property-exemption-hope",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "request_callback",
+    "approved_spoken_answer": "Of course. A person can follow up with you — I'll just collect a few basics: your name, the best number to reach you, and a good time to call. Nothing you share here commits you to anything.",
+    "long_answer": "Civya can create a follow-up request so a resident-support specialist or program partner contacts you directly. The request includes only the details you choose to share and a short summary of what you need, so you don't have to repeat your story.",
+    "disclaimer": "Follow-up in this demo is simulated; no real outreach occurs.",
+    "next_step_prompt": "What's the best way and time to reach you?",
+    "allowed_next_questions": [],
+    "escalation_triggers": [],
+    "example_utterances": [
+      "Can someone call me?",
+      "I want to talk to a person",
+      "Can a human call me back?",
+      "I'd rather speak with someone"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/taxpayer-assistance.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "payment_location_status",
+    "approved_spoken_answer": "You can pay Wayne County property taxes online, by mail, or in person at the Treasurer's Office at 400 Monroe Street in downtown Detroit. Online is usually fastest, and you can also check your balance there any time with your parcel number or address.",
+    "long_answer": "Wayne County delinquent property taxes can be paid: online through the Treasurer's payment portal (card or e-check, fees may apply); by mail to the Wayne County Treasurer, 400 Monroe, Detroit, MI 48226; or in person at the Treasurer's Office. Current-year taxes are paid to your local city or township until they become delinquent. Balances and payment history are available through the Treasurer's online property lookup.",
+    "disclaimer": "Payment channels and fees are set by the Wayne County Treasurer and your local treasurer.",
+    "next_step_prompt": "Would you like the steps to look up your current balance?",
+    "allowed_next_questions": ["Do you have your parcel number or address?"],
+    "escalation_triggers": [],
+    "example_utterances": [
+      "Where do I pay my taxes?",
+      "How do I pay?",
+      "Where do I send payment?",
+      "How do I check my balance?",
+      "Can I pay online?"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/payment-options.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  }
+]

@@ -1,0 +1,409 @@
+{
+  "hope_pays": {
+    "label": "HOPE exemption → PAYS enrollment",
+    "requiresPayment": false,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID for the applicant."
+      },
+      {
+        "documentType": "proof_of_occupancy",
+        "label": "Proof you live at the property",
+        "description": "A recent utility bill, lease, or similar document showing your name at the property address."
+      },
+      {
+        "documentType": "proof_of_income",
+        "label": "Proof of household income",
+        "description": "Pay stubs, benefit award letters, or tax returns for all adults in the home."
+      },
+      {
+        "documentType": "tax_notice",
+        "label": "Tax notice or parcel number",
+        "description": "The most recent tax notice, or the property's parcel number."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      },
+      {
+        "key": "contact",
+        "label": "Phone or email",
+        "question": "What's the best phone number or email to reach you?"
+      },
+      {
+        "key": "owner_occupancy",
+        "label": "Owner-occupancy",
+        "question": "Do you own the home and live there most of the year?"
+      },
+      {
+        "key": "household_size",
+        "label": "Household size",
+        "question": "How many people live in your household, including you?"
+      },
+      {
+        "key": "income_range",
+        "label": "Income estimate",
+        "question": "Roughly what does your household bring in each month — just a ballpark is fine?"
+      },
+      {
+        "key": "hardship",
+        "label": "Hardship context",
+        "question": "Can you tell me a little about what's made the taxes hard to keep up with?"
+      },
+      {
+        "key": "notice_type",
+        "label": "Notice received",
+        "question": "Have you received a notice or letter about the property — and what kind, if you know?"
+      },
+      {
+        "key": "hope_pays_history",
+        "label": "HOPE/PAYS history",
+        "question": "Have you applied for HOPE or PAYS before?"
+      }
+    ]
+  },
+  "payment_plan": {
+    "label": "Wayne County Treasurer payment plan",
+    "requiresPayment": true,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID for the account holder."
+      },
+      {
+        "documentType": "tax_notice",
+        "label": "Tax notice or parcel number",
+        "description": "The delinquency notice or parcel number for the property."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      },
+      {
+        "key": "contact",
+        "label": "Phone or email",
+        "question": "What's the best phone number or email to reach you?"
+      },
+      {
+        "key": "estimated_balance",
+        "label": "Estimated amount owed",
+        "question": "About how much is owed — a rough number from your notice is fine?"
+      },
+      {
+        "key": "preferred_monthly_payment",
+        "label": "Comfortable monthly payment",
+        "question": "What monthly amount would feel manageable for you?"
+      },
+      {
+        "key": "preferred_payment_date",
+        "label": "Preferred payment date",
+        "question": "What day of the month works best for the payment to come out?"
+      },
+      {
+        "key": "notice_type",
+        "label": "Notice received",
+        "question": "Have you received a notice or letter about the property — and what kind, if you know?"
+      },
+      {
+        "key": "can_pay_today",
+        "label": "Ability to pay today",
+        "question": "Could you put anything toward it today, even a small amount? It's completely okay if not."
+      }
+    ]
+  },
+  "irspa_agreement": {
+    "label": "Interest-reduction payment agreement (IRSPA-style)",
+    "requiresPayment": true,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID."
+      },
+      {
+        "documentType": "tax_notice",
+        "label": "Tax notice or parcel number",
+        "description": "The delinquency notice or parcel number."
+      },
+      {
+        "documentType": "proof_of_occupancy",
+        "label": "Proof you live at the property",
+        "description": "Owner-occupant agreements need a recent utility bill or lease."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      },
+      {
+        "key": "owner_occupancy",
+        "label": "Owner-occupancy / PRE",
+        "question": "Do you own the home and live there as your main residence?"
+      },
+      {
+        "key": "delinquency_years",
+        "label": "Years behind",
+        "question": "Which tax years are behind — just the years you know of?"
+      },
+      {
+        "key": "estimated_balance",
+        "label": "Estimated balance",
+        "question": "About how much is owed altogether?"
+      },
+      {
+        "key": "preferred_monthly_payment",
+        "label": "Comfortable monthly payment",
+        "question": "What monthly amount would feel manageable?"
+      }
+    ]
+  },
+  "regspa_agreement": {
+    "label": "Standard payment agreement (REGSPA-style)",
+    "requiresPayment": true,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID."
+      },
+      {
+        "documentType": "tax_notice",
+        "label": "Tax notice or parcel number",
+        "description": "The delinquency notice or parcel number."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      },
+      {
+        "key": "delinquency_years",
+        "label": "Years behind",
+        "question": "Which tax years are behind?"
+      },
+      {
+        "key": "estimated_balance",
+        "label": "Estimated balance",
+        "question": "About how much is owed altogether?"
+      },
+      {
+        "key": "preferred_monthly_payment",
+        "label": "Comfortable monthly payment",
+        "question": "What monthly amount would feel manageable?"
+      }
+    ]
+  },
+  "dooe_hardship": {
+    "label": "Hardship withholding (DOOE-style)",
+    "requiresPayment": false,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID."
+      },
+      {
+        "documentType": "proof_of_occupancy",
+        "label": "Proof you live at the property",
+        "description": "A recent utility bill, lease, or mail at the address."
+      },
+      {
+        "documentType": "tax_notice",
+        "label": "Tax notice",
+        "description": "Any tax letters about the property."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      },
+      {
+        "key": "owner_occupancy",
+        "label": "Owner-occupancy",
+        "question": "Do you own the home and live there?"
+      },
+      {
+        "key": "hardship",
+        "label": "Hardship context",
+        "question": "Can you tell me a little about the hardship you're facing?"
+      },
+      {
+        "key": "resolution_ability",
+        "label": "Ability to resolve",
+        "question": "Do you think you could resolve the balance within the program period, with help?"
+      }
+    ]
+  },
+  "document_completion": {
+    "label": "Document completion assistance",
+    "requiresPayment": false,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      }
+    ]
+  },
+  "partner_referral": {
+    "label": "Community partner referral",
+    "requiresPayment": false,
+    "required": [],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "contact",
+        "label": "Phone or email",
+        "question": "What's the best way for the partner to reach you?"
+      }
+    ]
+  },
+  "legal_aid_referral": {
+    "label": "Legal aid referral (title/probate)",
+    "requiresPayment": false,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID."
+      },
+      {
+        "documentType": "ownership_document",
+        "label": "Any ownership papers you have",
+        "description": "A deed, will, land contract, or anything showing how the home was owned. It is okay if you are not sure what it is."
+      },
+      {
+        "documentType": "tax_notice",
+        "label": "Tax notice",
+        "description": "Any tax letters about the property."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      },
+      {
+        "key": "relationship_to_owner",
+        "label": "Relationship to owner",
+        "question": "How are you connected to the person who owned the home?"
+      },
+      {
+        "key": "name_on_deed",
+        "label": "Name on the deed (if known)",
+        "question": "Do you know whose name is on the deed?"
+      },
+      {
+        "key": "probate_documents_exist",
+        "label": "Probate documents",
+        "question": "Has anyone started probate, or do any court papers exist that you know of?"
+      },
+      {
+        "key": "lives_at_property",
+        "label": "Living at the property",
+        "question": "Are you living at the property now?"
+      },
+      {
+        "key": "notices_received",
+        "label": "Notices received",
+        "question": "Have any tax notices or letters arrived about the property?"
+      }
+    ]
+  },
+  "occupant_options": {
+    "label": "Occupant options (not on title)",
+    "requiresPayment": false,
+    "required": [
+      {
+        "documentType": "id",
+        "label": "Photo ID",
+        "description": "A government-issued photo ID."
+      },
+      {
+        "documentType": "proof_of_occupancy",
+        "label": "Proof you live at the property",
+        "description": "A recent utility bill, lease, or mail showing your name at the address."
+      }
+    ],
+    "requiredFacts": [
+      {
+        "key": "resident_name",
+        "label": "Your name",
+        "question": "Can I get your first and last name?"
+      },
+      {
+        "key": "property_address",
+        "label": "Property address",
+        "question": "What's the address of the property?"
+      }
+    ]
+  },
+  "payment_guidance": {
+    "label": "Payment and balance guidance",
+    "requiresPayment": false,
+    "required": [],
+    "requiredFacts": []
+  }
+}

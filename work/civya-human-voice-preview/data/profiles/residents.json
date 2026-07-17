@@ -1,0 +1,143 @@
+[
+  {
+    "profile_id": "demo-001",
+    "name": "Eleanor Jackson",
+    "address": "4172 Maplewood Street",
+    "city": "Detroit",
+    "ownership_status": "owner",
+    "primary_residence": true,
+    "senior": true,
+    "tax_status": {
+      "current_year_delinquent": true,
+      "prior_year_delinquent": true,
+      "total_owed_usd": 6842,
+      "years_delinquent": ["2024", "2025"],
+      "foreclosure_risk": "watch",
+      "foreclosure_deadline": "2027-03-31"
+    },
+    "programs_applied": [],
+    "eligibility_indicators": [
+      "senior_household",
+      "income_likely_below_hope_threshold",
+      "owner_occupant",
+      "detroit_property"
+    ],
+    "document_status": {
+      "photo_id": "received",
+      "proof_of_residency": "received",
+      "proof_of_income": "missing",
+      "tax_notice": "received"
+    },
+    "recommended_next_step": "Apply for the HOPE exemption before the Board of Review deadline; HOPE approval unlocks PAYS to reduce the back-tax balance."
+  },
+  {
+    "profile_id": "demo-002",
+    "name": "Marcus Reed",
+    "address": "918 Harborview Drive",
+    "city": "Wyandotte",
+    "ownership_status": "owner",
+    "primary_residence": true,
+    "senior": false,
+    "tax_status": {
+      "current_year_delinquent": false,
+      "prior_year_delinquent": true,
+      "total_owed_usd": 3120,
+      "years_delinquent": ["2025"],
+      "foreclosure_risk": "none"
+    },
+    "programs_applied": [],
+    "eligibility_indicators": [
+      "owner_occupant",
+      "steady_income",
+      "single_year_delinquency"
+    ],
+    "document_status": {
+      "photo_id": "received",
+      "proof_of_residency": "received",
+      "proof_of_income": "received",
+      "tax_notice": "received"
+    },
+    "recommended_next_step": "Enroll in a Wayne County Treasurer payment plan (IRSPA) to spread the 2025 balance over monthly payments with reduced interest."
+  },
+  {
+    "profile_id": "demo-003",
+    "name": "Denise Alvarez",
+    "address": "2306 Crescent Avenue",
+    "city": "Detroit",
+    "ownership_status": "owner",
+    "primary_residence": true,
+    "senior": false,
+    "tax_status": {
+      "current_year_delinquent": true,
+      "prior_year_delinquent": true,
+      "total_owed_usd": 11485,
+      "years_delinquent": ["2023", "2024", "2025"],
+      "foreclosure_risk": "imminent",
+      "foreclosure_deadline": "2026-09-15"
+    },
+    "programs_applied": ["HOPE (pending)"],
+    "eligibility_indicators": [
+      "owner_occupant",
+      "detroit_property",
+      "hope_application_pending",
+      "foreclosure_deadline_near"
+    ],
+    "document_status": {
+      "photo_id": "received",
+      "proof_of_residency": "missing",
+      "proof_of_income": "missing",
+      "tax_notice": "received"
+    },
+    "recommended_next_step": "URGENT: complete the pending HOPE application documents before the September 15 deadline; if HOPE is approved, enroll in PAYS immediately. A human specialist should follow up this week."
+  },
+  {
+    "profile_id": "demo-004",
+    "name": "Terrence Whitfield",
+    "address": "7751 Elmhurst Road",
+    "city": "Inkster",
+    "ownership_status": "heir",
+    "primary_residence": true,
+    "senior": false,
+    "tax_status": {
+      "current_year_delinquent": true,
+      "prior_year_delinquent": true,
+      "total_owed_usd": 4930,
+      "years_delinquent": ["2024", "2025"],
+      "foreclosure_risk": "watch"
+    },
+    "programs_applied": [],
+    "eligibility_indicators": [
+      "occupant_heir",
+      "title_not_transferred",
+      "deceased_owner_on_deed"
+    ],
+    "document_status": {
+      "photo_id": "received",
+      "proof_of_residency": "received",
+      "proof_of_income": "not_needed",
+      "death_certificate": "missing",
+      "deed": "missing"
+    },
+    "recommended_next_step": "Referral to Wayne County legal aid for probate/title transfer; tax-relief programs become available once title is in the heir's name. Flag for human follow-up."
+  },
+  {
+    "profile_id": "demo-005",
+    "name": "Priya Natarajan",
+    "address": "1433 Lakepointe Boulevard",
+    "city": "Livonia",
+    "ownership_status": "owner",
+    "primary_residence": true,
+    "senior": false,
+    "tax_status": {
+      "current_year_delinquent": false,
+      "prior_year_delinquent": false,
+      "total_owed_usd": 0,
+      "years_delinquent": [],
+      "foreclosure_risk": "none"
+    },
+    "programs_applied": [],
+    "eligibility_indicators": ["current_on_taxes"],
+    "document_status": {},
+    "recommended_next_step": "No assistance needed — provide payment location, due dates, and balance-lookup guidance only."
+  }
+]

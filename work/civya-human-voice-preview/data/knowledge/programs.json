@@ -1,0 +1,148 @@
+[
+  {
+    "intent": "payment_plan",
+    "approved_spoken_answer": "A payment plan may be available — the Treasurer offers several, including a reduced-interest plan for owner-occupants that drops interest from eighteen to six percent, and no-down-payment provisions for veterans and first responders. Enrollment can even start online. One honest note: the reduced-interest plan's legal authority was set to expire at the end of June unless extended, so we confirm today's status with the Treasurer — and I can help you get everything ready either way.",
+    "long_answer": "The Wayne County Treasurer offers payment plans for delinquent taxes: the Interest Reduction Stipulated Payment Agreement (IRSPA) cuts interest from 18% to 6% for owner-occupants (deed in name, PRE on file; statutory authority was set to sunset June 30, 2026 — confirm live status), and a standard agreement (REGSPA — current availability needs verification) spreads payments without the rate reduction. Veterans (DD-214) and first responders (employment proof) can enroll with no down payment. Enroll online at pta.waynecounty.com, by phone at (313) 224-5990, or at 400 Monroe, 5th Floor, Detroit.",
+    "disclaimer": "This is general program information, not legal or tax advice. Terms are set by the Wayne County Treasurer and can change.",
+    "next_step_prompt": "Would you like me to walk you through what you need to start a payment plan?",
+    "allowed_next_questions": [
+      "Are you the owner of the home?",
+      "Are you behind on current taxes, prior-year taxes, or both?",
+      "Have you applied for HOPE or a payment plan before?"
+    ],
+    "escalation_triggers": [
+      "bankruptcy",
+      "lawsuit",
+      "court order"
+    ],
+    "example_utterances": [
+      "Can I pay monthly?",
+      "Can I get on a payment plan?",
+      "Can I split up the taxes?",
+      "Do you have installment plans?",
+      "I can't pay all at once",
+      "How do payment plans work?"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/payment-plans.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": {
+      "voice": true,
+      "sms": true,
+      "web": true
+    }
+  },
+  {
+    "intent": "hope_program",
+    "approved_spoken_answer": "HOPE is Detroit's Homeowners Property Exemption. If you own and live in your Detroit home and your income qualifies, it can remove ten to one hundred percent of this year's property taxes — and under a recent state-law change it can reach last year's taxes too. Approval automatically unlocks PAYS, which shrinks the older debt. This year's deadline is November sixth.",
+    "long_answer": "The Homeowners Property Exemption (HOPE, formerly HPTAP/the Poverty Tax Exemption) exempts current-year property taxes at 100%, 75%, 50%, 25%, or 10% tiers based on household income and circumstances; the 10% tier requires foreclosure threat or a 20%+ household income loss. Decisions are made by the Detroit Property Assessment Board of Review (March, July, and December dockets). Under amended MCL 211.7u, new 2025-year applications are also accepted until the 2026 deadline: 4:30 p.m., Friday, November 6, 2026. HOPE approval automatically enrolls qualifying homeowners in PAYS.",
+    "disclaimer": "This is general program information, not a determination of eligibility. Only the Board of Review can approve a HOPE application.",
+    "next_step_prompt": "Would you like to check whether HOPE might fit your situation? I just need to ask a few short questions.",
+    "escalation_triggers": [],
+    "allowed_next_questions": [
+      "Do you own the home?",
+      "Is this your primary residence?",
+      "Is the property in Detroit?"
+    ],
+    "example_utterances": [
+      "What is HOPE?",
+      "Tell me about the HOPE program",
+      "How do I get my taxes lowered because of income?",
+      "Is there a hardship exemption?",
+      "poverty tax exemption"
+    ],
+    "source_url": "https://detroitmi.gov/government/boards/property-assessment-board-review/homeowners-property-exemption-hope",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": {
+      "voice": true,
+      "sms": true,
+      "web": true
+    }
+  },
+  {
+    "intent": "pays_program",
+    "approved_spoken_answer": "PAYS stands for Pay As You Stay. Once you're approved for the HOPE exemption, it automatically cuts your county back taxes to the base taxes or ten percent of your home's taxable value — whichever is less — with up to three years to pay at zero interest, and the interest and fees are canceled when you finish. One honest note: the law behind PAYS was set to expire at the end of June unless extended, so the Treasurer confirms today's status. The HOPE application is still the right first step.",
+    "long_answer": "Pay As You Stay (PAYS; 2020 PA 33, MCL 211.78q, adopted by Wayne County) applies when a homeowner is granted a local poverty exemption such as Detroit's HOPE: enrollment is automatic, the delinquent balance is reduced to base taxes only or 10% of taxable value (whichever is less), payable over up to 3 years at 0% interest via a PAYS Payment Agreement, with all interest, penalties, and fees canceled upon completion. PAYS does not cover current-year taxes (HOPE handles those). Statutory authority was set to sunset June 30, 2026 absent legislative extension — confirm live status with the Wayne County Treasurer.",
+    "disclaimer": "This is general program information, not a determination of eligibility. PAYS enrollment is administered by the Wayne County Treasurer.",
+    "next_step_prompt": "The first step toward PAYS is the HOPE application. Would you like to go over what that takes?",
+    "allowed_next_questions": [
+      "Have you applied for HOPE?",
+      "Do you own and live in the home?"
+    ],
+    "escalation_triggers": [],
+    "example_utterances": [
+      "What is PAYS?",
+      "pay as you stay",
+      "How do I get my back taxes reduced?",
+      "Can my old tax debt be forgiven?"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/pay-as-you-stay.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": {
+      "voice": true,
+      "sms": true,
+      "web": true
+    }
+  },
+  {
+    "intent": "owner_occupant",
+    "approved_spoken_answer": "Living in the home you own matters a lot here — several of the best programs, like HOPE and certain payment plans, are just for people who own and live in their home. So that's usually one of the first things we check.",
+    "long_answer": "Owner-occupant status — owning the home and living in it as your primary residence — is a key eligibility factor for the HOPE exemption, the PAYS program, and owner-occupant payment plans. If you own the home but do not live there, or live there but are not on the title, different options apply, and it is still worth talking through your situation.",
+    "disclaimer": "This is general information, not legal advice about ownership or title.",
+    "next_step_prompt": "Can I ask — do you own the home, and is it where you live most of the year?",
+    "allowed_next_questions": [
+      "Are you the owner of the home?",
+      "Is this your primary residence?"
+    ],
+    "escalation_triggers": [
+      "deed dispute",
+      "quiet title",
+      "someone else on the deed"
+    ],
+    "example_utterances": [
+      "Does it matter if I live in the house?",
+      "What does owner occupant mean?",
+      "I own it but I rent it out",
+      "Do I have to live there to qualify?"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/taxpayer-assistance.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": {
+      "voice": true,
+      "sms": true,
+      "web": true
+    }
+  },
+  {
+    "intent": "pre_homestead",
+    "approved_spoken_answer": "The Principal Residence Exemption — people often call it the homestead exemption — lowers your tax bill on the home you actually live in by exempting you from part of the school tax. If the home is your main residence and the exemption isn't on file, you may be paying more than you need to. It's a form you file with your city or township assessor.",
+    "long_answer": "Michigan's Principal Residence Exemption (PRE) exempts a homeowner's principal residence from the tax levied by the local school district for operating purposes, up to 18 mills. To claim it, the home must be owned and occupied as your principal residence, and Form 2368 must be filed with your local assessor. If a PRE was wrongly removed or never filed, corrections may be possible for limited prior years.",
+    "disclaimer": "This is general information, not tax advice. PRE rules are set by the State of Michigan and administered by local assessors.",
+    "next_step_prompt": "Would you like the steps to check whether the exemption is on file for your home?",
+    "allowed_next_questions": [
+      "Is this your primary residence?",
+      "What city is the property in?"
+    ],
+    "escalation_triggers": [
+      "audit",
+      "denial appeal"
+    ],
+    "example_utterances": [
+      "What is the homestead exemption?",
+      "What is PRE?",
+      "principal residence exemption",
+      "Am I paying school taxes I shouldn't be?"
+    ],
+    "source_url": "https://www.michigan.gov/taxes/property/principal",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": {
+      "voice": true,
+      "sms": true,
+      "web": true
+    }
+  }
+]

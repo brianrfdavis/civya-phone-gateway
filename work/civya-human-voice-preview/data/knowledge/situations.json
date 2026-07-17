@@ -1,0 +1,150 @@
+[
+  {
+    "intent": "fear_losing_home",
+    "approved_spoken_answer": "I hear you, and I want you to know something important: you have options, and it is not too late to use them. Thousands of Wayne County families have been in this exact spot and kept their homes. Let's slow this down and take it one step at a time. Can I ask you a couple of short questions so we can find the right path for you?",
+    "long_answer": "Being behind on property taxes is frightening, but Wayne County and the City of Detroit operate several programs specifically designed to keep people in their homes — including the HOPE exemption, the Pay As You Stay (PAYS) program, and Treasurer payment plans. The most important thing is to act before foreclosure deadlines. Free help is available from the Treasurer's Office and community partners; no one has to navigate this alone.",
+    "disclaimer": "This is general support information, not legal advice. Deadlines and program terms are set by the Wayne County Treasurer.",
+    "next_step_prompt": "Are you trying to set up a payment plan, check what you owe, or understand a letter you received?",
+    "allowed_next_questions": [
+      "Are you the owner of the home?",
+      "Have you received a tax notice?",
+      "Are you behind on current taxes, prior-year taxes, or both?"
+    ],
+    "escalation_triggers": ["foreclosure sale date", "eviction", "auction next week"],
+    "example_utterances": [
+      "I'm scared of losing my home",
+      "Am I going to lose my house?",
+      "They're going to take my home",
+      "I'm afraid of foreclosure",
+      "I don't want to be homeless"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/taxpayer-assistance.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "received_letter",
+    "approved_spoken_answer": "Getting a letter from the Treasurer can be unsettling, but it's actually the county making sure you know where things stand — and most letters come with time to act. If you can tell me roughly what the letter says, or what year it mentions, I can help you understand what it means and what to do next.",
+    "long_answer": "The Wayne County Treasurer sends notices at each stage of the delinquent tax process — from initial delinquency notices to forfeiture and foreclosure notifications. Each notice type has different deadlines and options. Responding early preserves the most options, including payment plans and hardship programs. Bring or reference the letter when you contact the Treasurer's Office so staff can see exactly which stage applies.",
+    "disclaimer": "This is general information. The letter itself and the Treasurer's Office are the authoritative sources for your specific deadlines.",
+    "next_step_prompt": "Does the letter mention forfeiture, foreclosure, or a specific deadline date?",
+    "allowed_next_questions": [
+      "Have you received a tax notice?",
+      "Are you behind on current taxes, prior-year taxes, or both?"
+    ],
+    "escalation_triggers": ["show cause hearing", "circuit court", "judgment"],
+    "example_utterances": [
+      "I got a letter from the Treasurer",
+      "I received a notice about my taxes",
+      "There's a certified letter about my property",
+      "What does this tax notice mean?"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/home.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "do_nothing_consequences",
+    "approved_spoken_answer": "That's an honest question, and I'll be straight with you — unpaid property taxes in Michigan follow a set timeline: after they're delinquent for a while, the property can be forfeited to the county, and eventually it can go through tax foreclosure. But here's the important part: at almost every stage before the final deadline, there are ways to stop that process. Acting early keeps the most doors open.",
+    "long_answer": "In Michigan, property taxes that go unpaid become delinquent on March 1 of the following year. After about a year of delinquency the property is forfeited to the county treasurer (this is not the same as losing the home), and roughly a year after that it can be foreclosed through circuit court, after which it may be sold at auction. Interest and fees increase at each stage. Payment plans, the HOPE exemption, and PAYS can interrupt this process — but only before the foreclosure judgment becomes final, which is why timing matters so much.",
+    "disclaimer": "This is a general description of Michigan's process, not legal advice about your property or deadlines.",
+    "next_step_prompt": "Would you like to find out which stage your property is in right now?",
+    "allowed_next_questions": [
+      "Have you received a tax notice?",
+      "Are you behind on current taxes, prior-year taxes, or both?"
+    ],
+    "escalation_triggers": ["judgment entered", "already foreclosed", "auction happened"],
+    "example_utterances": [
+      "What happens if I do nothing?",
+      "What if I just don't pay?",
+      "How long before they take the house?",
+      "What's the timeline for foreclosure?"
+    ],
+    "source_url": "https://www.michigan.gov/taxes/property/delinquent",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "already_paid",
+    "approved_spoken_answer": "Good — thank you for telling me. If you've already made a payment, the best move is to confirm it was applied to the right parcel and the right tax year. I can tell you how to check your balance and payment history with the Treasurer so you have peace of mind.",
+    "long_answer": "Payments to the Wayne County Treasurer are applied per parcel and per tax year, and it can take several business days for a payment to appear. You can verify payments and current balances through the Treasurer's online property tax lookup or by calling the Treasurer's Office with your parcel number. Keep receipts or confirmation numbers until the balance reflects the payment.",
+    "disclaimer": "This is general guidance. The Treasurer's records are the official source for balances and payment status.",
+    "next_step_prompt": "Do you have your parcel number or property address handy so you can check the balance?",
+    "allowed_next_questions": ["Would you like a person to follow up?"],
+    "escalation_triggers": ["payment lost", "paid but still foreclosed", "refund dispute"],
+    "example_utterances": [
+      "I already made a payment",
+      "I paid but it still shows I owe",
+      "Did my payment go through?",
+      "I sent a check last week"
+    ],
+    "source_url": "https://www.waynecounty.com/elected/treasurer/home.aspx",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "not_owner_occupant",
+    "approved_spoken_answer": "Thanks for telling me that — it matters. If you live in the home but aren't on the title, some programs work differently, but you still may have real options, especially if you're related to the owner. Can I ask how you're connected to the owner? For example, is this a family home?",
+    "long_answer": "Occupants who are not on the title — such as family members, heirs, or long-term residents — face different rules for tax assistance programs. Some pathways exist for heirs to establish ownership (such as probate or property transfer processes), which can then unlock programs like HOPE and PAYS. Legal aid organizations in Wayne County help residents resolve title issues at low or no cost.",
+    "disclaimer": "This is general information, not legal advice about ownership, title, or inheritance.",
+    "next_step_prompt": "How are you connected to the owner of the home?",
+    "allowed_next_questions": [
+      "Is the owner living?",
+      "Are you related to the owner?",
+      "Would you like a person to follow up?"
+    ],
+    "escalation_triggers": ["probate", "deceased owner", "title", "deed", "inheritance"],
+    "example_utterances": [
+      "I'm not the owner but I live here",
+      "The house is in my mother's name",
+      "I live in the house but it's not mine",
+      "My name isn't on the deed"
+    ],
+    "source_url": "https://michiganlegalhelp.org/resources/housing",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "owner_deceased",
+    "approved_spoken_answer": "I'm sorry — that's a hard situation to carry, and it's more common than you might think. When the owner has passed away, the path usually runs through settling the title, and that's something a legal aid attorney should guide, not me. What I can do right now is collect the basic details and connect you with free legal help in Wayne County. Would that be okay?",
+    "long_answer": "When a property owner dies, heirs often need to complete probate or a property transfer process before they can access tax relief programs in their own name. This is a legal process, and free or low-cost help is available through Wayne County legal aid organizations and Michigan Legal Help. Acting early matters because tax deadlines continue to run while title is being resolved. Civya flags these cases for human follow-up rather than guessing at legal steps.",
+    "disclaimer": "Civya does not provide legal advice. Estate and title questions require a qualified attorney or legal aid service.",
+    "next_step_prompt": "Would you like me to set up a follow-up so a person can connect you with free legal help?",
+    "allowed_next_questions": ["Would you like a person to follow up?"],
+    "escalation_triggers": ["always"],
+    "example_utterances": [
+      "The owner died",
+      "My mother passed away and the house was hers",
+      "The house belonged to my grandfather who died",
+      "Owner is deceased"
+    ],
+    "source_url": "https://michiganlegalhelp.org/resources/wills-life-planning",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  },
+  {
+    "intent": "legal_help",
+    "approved_spoken_answer": "I don't want to guess on anything legal — you deserve real legal guidance, and the good news is free help exists in Wayne County. I can collect a few basic details so the right person can follow up, or point you to legal aid directly. Which would you prefer?",
+    "long_answer": "Free and low-cost legal help for housing and property-tax issues in Wayne County is available through organizations such as Lakeshore Legal Aid, the United Community Housing Coalition, and Michigan Legal Help. These organizations assist with foreclosure defense, title and probate issues, and program applications. Civya routes legal questions to human review rather than offering legal opinions.",
+    "disclaimer": "Civya does not provide legal advice or represent residents. The organizations listed are independent legal service providers.",
+    "next_step_prompt": "Would you like me to create a follow-up request so someone can connect you with legal aid?",
+    "allowed_next_questions": ["Would you like a person to follow up?"],
+    "escalation_triggers": ["always"],
+    "example_utterances": [
+      "I need legal help",
+      "I need a lawyer",
+      "Can you give me legal advice?",
+      "Is what they're doing legal?"
+    ],
+    "source_url": "https://michiganlegalhelp.org/guide-to-legal-help",
+    "last_reviewed": "2026-07-06",
+    "status": "draft",
+    "channels": { "voice": true, "sms": true, "web": true }
+  }
+]

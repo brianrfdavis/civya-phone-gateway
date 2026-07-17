@@ -1,0 +1,236 @@
+{
+  "id": "guided-intake",
+  "start": "property_address",
+  "states": [
+    {
+      "id": "property_address",
+      "question": "I can help you sort this out one step at a time. What is the property address?",
+      "field": "property_address",
+      "next": {
+        "other": "owner"
+      }
+    },
+    {
+      "id": "owner",
+      "question": "Thank you. Are you the owner of the home?",
+      "field": "is_owner",
+      "next": {
+        "yes": "primary_residence",
+        "no": "owner_relationship",
+        "heir": "outcome:legal_referral",
+        "deceased": "outcome:legal_referral"
+      }
+    },
+    {
+      "id": "owner_relationship",
+      "question": "Thanks for telling me. Is the owner a family member, and are they living?",
+      "field": "owner_relationship",
+      "next": {
+        "deceased": "outcome:legal_referral",
+        "heir": "outcome:legal_referral",
+        "family_living": "outcome:occupant_guidance",
+        "other": "outcome:occupant_guidance"
+      }
+    },
+    {
+      "id": "primary_residence",
+      "question": "Good. Do you live in this home as your primary residence — the place you live most of the year?",
+      "field": "primary_residence",
+      "next": {
+        "yes": "municipality",
+        "no": "municipality"
+      }
+    },
+    {
+      "id": "municipality",
+      "question": "What city is the property in?",
+      "field": "city",
+      "next": {
+        "detroit": "notice_received",
+        "other": "notice_received"
+      }
+    },
+    {
+      "id": "notice_received",
+      "question": "Have you received a tax notice or letter about this property?",
+      "field": "received_notice",
+      "next": {
+        "yes": "notice_type",
+        "no": "delinquency_years"
+      }
+    },
+    {
+      "id": "notice_type",
+      "question": "What words do you see on the notice — delinquent, forfeiture, show cause, foreclosure, court hearing, or something else?",
+      "field": "notice_type",
+      "next": {
+        "court": "deadline",
+        "show_cause": "deadline",
+        "foreclosure": "deadline",
+        "auction": "deadline",
+        "forfeiture": "deadline",
+        "delinquent": "delinquency_years",
+        "other": "delinquency_years"
+      }
+    },
+    {
+      "id": "deadline",
+      "question": "This may be time-sensitive, so I want to be careful. Does the notice list a deadline or hearing date?",
+      "field": "deadline",
+      "next": {
+        "yes": "outcome:urgent_human_review",
+        "no": "outcome:elevated_human_review",
+        "other": "outcome:elevated_human_review"
+      }
+    },
+    {
+      "id": "delinquency_years",
+      "question": "What year or years are listed as delinquent? For example, 2023, 2024, or more than one year.",
+      "field": "delinquency_years",
+      "next": {
+        "none": "outcome:payment_guidance",
+        "current": "pre_status",
+        "prior": "pre_status",
+        "both": "pre_status",
+        "other": "pre_status"
+      }
+    },
+    {
+      "id": "pre_status",
+      "question": "Do you know if the home has a Principal Residence Exemption, also called PRE or homestead?",
+      "field": "pre_status",
+      "next": {
+        "yes": "detroit_hope_history",
+        "no": "detroit_hope_history",
+        "unknown": "detroit_hope_history",
+        "other": "detroit_hope_history"
+      }
+    },
+    {
+      "id": "detroit_hope_history",
+      "question": "Have you already applied for HOPE, PAYS, IRSPA, or a Treasurer payment plan?",
+      "field": "hope_pays_history",
+      "next": {
+        "hope": "documents_ready",
+        "pays": "documents_ready",
+        "irspa": "documents_ready",
+        "payment_plan": "documents_ready",
+        "no": "ability_to_pay",
+        "unknown": "ability_to_pay",
+        "other": "ability_to_pay"
+      }
+    },
+    {
+      "id": "ability_to_pay",
+      "question": "Are you able to make any payment right now, even a small first payment?",
+      "field": "can_pay_today",
+      "next": {
+        "yes": "hardship",
+        "no": "hardship",
+        "unknown": "hardship",
+        "other": "hardship"
+      }
+    },
+    {
+      "id": "hardship",
+      "question": "Is there a hardship affecting payment, like fixed income, job loss, medical bills, disability, or a recent family change?",
+      "field": "hardship",
+      "next": {
+        "yes": "documents_ready",
+        "no": "documents_ready",
+        "other": "documents_ready"
+      }
+    },
+    {
+      "id": "documents_ready",
+      "question": "I can help with the paperwork. Do you have documents like ID, proof of residence, proof of income, or the tax notice available?",
+      "field": "documents_ready",
+      "next": {
+        "yes": "followup_preference",
+        "no": "followup_preference",
+        "other": "followup_preference"
+      }
+    },
+    {
+      "id": "followup_preference",
+      "question": "Would you like a person to review this with you before you submit anything?",
+      "field": "wants_followup",
+      "next": {
+        "yes": "outcome:assistance_with_followup",
+        "no": "outcome:self_guided_next_step",
+        "other": "outcome:assistance_with_followup"
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "urgent_human_review",
+      "path": "urgent_human_review",
+      "path_label": "Urgent review for deadline or hearing",
+      "next_step": "Create a human review task now, capture the notice type and deadline, and help the resident upload or describe the notice before ending the session.",
+      "urgency": "urgent",
+      "needs_human_followup": true,
+      "needs_legal_referral": false,
+      "document_checklist": ["tax_notice", "photo_id", "proof_of_residency", "any_court_or_show_cause_notice"]
+    },
+    {
+      "id": "elevated_human_review",
+      "path": "elevated_human_review",
+      "path_label": "Elevated review for unclear time-sensitive notice",
+      "next_step": "Flag the case for review, ask the resident to upload or read the notice, and continue collecting owner-occupant and delinquency facts.",
+      "urgency": "elevated",
+      "needs_human_followup": true,
+      "needs_legal_referral": false,
+      "document_checklist": ["tax_notice", "photo_id", "proof_of_residency"]
+    },
+    {
+      "id": "legal_referral",
+      "path": "legal_aid_referral",
+      "path_label": "Legal aid referral for title, probate, or ownership issue",
+      "next_step": "Connect the resident with legal aid or specialist review for the title issue, then revisit tax relief or payment-plan options once ownership is clear.",
+      "urgency": "elevated",
+      "needs_human_followup": true,
+      "needs_legal_referral": true,
+      "document_checklist": ["photo_id", "proof_of_residency", "death_certificate_if_available", "any_deed_will_or_probate_paper"]
+    },
+    {
+      "id": "occupant_guidance",
+      "path": "occupant_options",
+      "path_label": "Occupant options when resident is not on title",
+      "next_step": "Route to a specialist to review occupant options and whether the resident can help the owner complete tax-relief or payment-plan steps.",
+      "urgency": "normal",
+      "needs_human_followup": true,
+      "needs_legal_referral": false,
+      "document_checklist": ["photo_id", "proof_of_residency", "tax_notice_if_available"]
+    },
+    {
+      "id": "payment_guidance",
+      "path": "payment_guidance",
+      "path_label": "Payment and balance guidance",
+      "next_step": "Help the resident confirm the balance and choose the county payment route. Do not ask for real bank or card numbers in the demo.",
+      "urgency": "normal",
+      "needs_human_followup": false,
+      "needs_legal_referral": false
+    },
+    {
+      "id": "assistance_with_followup",
+      "path": "resident_assistance_path",
+      "path_label": "Resident assistance path with human review",
+      "next_step": "Give the resident a document checklist, create a follow-up task, and identify whether the next likely step is HOPE/PAYS, Treasurer payment plan, IRSPA/REGSPA review, DOOE review, or partner help.",
+      "urgency": "elevated",
+      "needs_human_followup": true,
+      "needs_legal_referral": false,
+      "document_checklist": ["photo_id", "proof_of_residency", "proof_of_income", "tax_notice", "payment_plan_or_relief_letters_if_any"]
+    },
+    {
+      "id": "self_guided_next_step",
+      "path": "resident_assistance_path_self_guided",
+      "path_label": "Self-guided resident assistance path",
+      "next_step": "Give the resident the next step and document checklist, then offer to save progress or schedule a callback if they get stuck.",
+      "urgency": "normal",
+      "needs_human_followup": false,
+      "needs_legal_referral": false,
+      "document_checklist": ["photo_id", "proof_of_residency", "proof_of_income", "tax_notice"]
+    }
+  ]
+}
