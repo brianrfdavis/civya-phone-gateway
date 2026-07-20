@@ -85,9 +85,9 @@ function assertFastProfile(): void {
 
   assert.deepEqual(session.audio.input.turn_detection, {
     type: "server_vad",
-    threshold: 0.4,
-    prefix_padding_ms: 500,
-    silence_duration_ms: 650,
+    threshold: 0.5,
+    prefix_padding_ms: 300,
+    silence_duration_ms: 500,
     create_response: false,
     interrupt_response: true,
     idle_timeout_ms: 20_000,
@@ -152,8 +152,8 @@ function assertRendererProfile(): void {
   assert.deepEqual(session.reasoning, { effort: "low" });
   assert.equal(session.max_output_tokens, PHONE_RESPONSE_MAX_OUTPUT_TOKENS);
   assert.equal(session.audio.input.turn_detection.silence_duration_ms, 650);
-  assert.equal(session.audio.input.turn_detection.threshold, 0.4);
-  assert.equal(session.audio.input.turn_detection.prefix_padding_ms, 500);
+  assert.equal(session.audio.input.turn_detection.threshold, 0.5);
+  assert.equal(session.audio.input.turn_detection.prefix_padding_ms, 300);
   assert.equal(session.audio.input.turn_detection.create_response, false);
   assert.equal(session.audio.input.turn_detection.interrupt_response, true);
 

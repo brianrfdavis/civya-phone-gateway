@@ -121,9 +121,12 @@ export function buildPhoneRealtimeSession(env: NodeJS.ProcessEnv = process.env):
         },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.4,
-          prefix_padding_ms: 500,
-          silence_duration_ms: 650,
+          // Use the previously proven phone profile. The lower 0.4 threshold
+          // admitted short line noise/echo bursts as speech, which produced
+          // repeated transcription failures and left a real caller waiting.
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: direct ? 500 : 650,
           create_response: false,
           interrupt_response: true,
           idle_timeout_ms: 20_000,

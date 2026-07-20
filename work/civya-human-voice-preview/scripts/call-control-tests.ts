@@ -457,7 +457,12 @@ async function testCallControlActivationAndClaims(): Promise<void> {
         tools: Array<{ name: string; parameters: { additionalProperties: boolean } }>;
         tool_choice: string;
         audio: {
-          input: { turn_detection: { silence_duration_ms: number; create_response: boolean } };
+          input: { turn_detection: {
+            silence_duration_ms: number;
+            threshold: number;
+            prefix_padding_ms: number;
+            create_response: boolean;
+          } };
           output: { voice: string };
         };
       };
@@ -470,7 +475,9 @@ async function testCallControlActivationAndClaims(): Promise<void> {
       assert.equal(request.tool_choice, "auto");
       assert.deepEqual(request.tools.map((tool) => tool.name), ["get_official_answer"]);
       assert.equal(request.tools[0]?.parameters.additionalProperties, false);
-      assert.equal(request.audio.input.turn_detection.silence_duration_ms, 650);
+      assert.equal(request.audio.input.turn_detection.silence_duration_ms, 500);
+      assert.equal(request.audio.input.turn_detection.threshold, 0.5);
+      assert.equal(request.audio.input.turn_detection.prefix_padding_ms, 300);
       assert.equal(request.audio.input.turn_detection.create_response, false);
       assert.equal(request.audio.output.voice, "marin");
       order.push("accept");
