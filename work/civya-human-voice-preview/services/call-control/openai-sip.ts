@@ -551,22 +551,16 @@ export class OpenAISipController {
         this.enqueueSpeech(call, maximumTurnsPhoneRoute());
         return;
       }
-      if (call.responseMode === "renderer") {
-        this.enqueueSpeech(call, {
-          intent: "menu",
-          approvedSpeech: "I didn't catch that. Please say it again.",
-          effect: "none",
-          offerSecureLink: false,
-          locale: call.state.locale === "es" ? "es" : "en",
-        });
-        return;
-      }
-      this.enqueueDirectResponse(call, {
-        itemId,
-        transcript: "",
-        sequence: call.inputSequence,
-        interruptionGeneration: speechGeneration,
-        stage: "answer",
+      // Without a transcript there is no trustworthy question to answer or
+      // send to the official-information service. Ask for a clean retry in
+      // every response mode instead of letting Realtime invent a tool call
+      // whose empty input the phone-turn contract must reject.
+      this.enqueueSpeech(call, {
+        intent: "menu",
+        approvedSpeech: "I didn't catch that. Please say it again.",
+        effect: "none",
+        offerSecureLink: false,
+        locale: call.state.locale === "es" ? "es" : "en",
       });
       return;
     }
@@ -691,6 +685,7 @@ export class OpenAISipController {
     functionCall: NonNullable<NonNullable<RealtimeEvent["response"]>["output"]>[number],
   ): Promise<void> {
     const callId = functionCall.call_id ?? "";
+    const transcript = turn.transcript.trim();
     const validArguments = (() => {
       try {
         const parsed = JSON.parse(functionCall.arguments ?? "{}");
@@ -713,11 +708,21 @@ export class OpenAISipController {
       this.releaseDirectResponse(call, turn);
       return;
     }
+    if (!transcript) {
+      this.metrics.officialLookupFailures += 1;
+      this.sendFunctionOutput(call, callId, {
+        ok: false,
+        message: "I didn't catch the question. Ask the caller to say it again.",
+      });
+      if (!this.advanceLookupResponse(call, turn)) return;
+      this.sendNoToolResponse(call, "Say briefly that you didn't catch the question and ask the caller to say it again.");
+      return;
+    }
 
     this.metrics.officialLookups += 1;
     try {
       const result = await this.requestPhoneTurn({
-        transcript: turn.transcript,
+        transcript,
         call_reference_digest: call.callReferenceDigest,
         provider_item_id: callId,
         idempotency_key: `phone_turn_${call.callReferenceDigest}_${callId}`,

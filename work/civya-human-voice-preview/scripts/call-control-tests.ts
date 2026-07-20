@@ -581,9 +581,98 @@ async function testCallControlActivationAndClaims(): Promise<void> {
   assert.doesNotMatch(JSON.stringify(publicJobs.claims[0]?.redactedPayload), /13135559876/);
 }
 
+async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<void> {
+  configuredPstnEnvironment();
+  process.env.CIVYA_PHONE_RESPONSE_MODE = "phone_fast";
+  const sentFrames: Array<Record<string, unknown>> = [];
+  const requestedTranscripts: string[] = [];
+  const controller = new OpenAISipController(fakeJobs(baseClaim).jobs, {
+    requestPhoneTurn: async (input) => {
+      requestedTranscripts.push(input.transcript);
+      return {
+        version: "1",
+        provider_item_id: input.provider_item_id,
+        intent: "wayne_county_treasurer_identity",
+        approved_speech: "Eric R. Sabree is the Wayne County Treasurer.",
+        canonical_speech: "Eric R. Sabree is the Wayne County Treasurer.",
+        locale: "en",
+        language_confidence: 1,
+        language_status: "source",
+        effect: "none",
+        offer_secure_link: false,
+        escalated: false,
+        source: "approved_content",
+        source_layer: "L1_exact",
+        may_change_case_state: false,
+      };
+    },
+  });
+  const call = {
+    callId: "call_transcription_test",
+    socket: {
+      readyState: 1,
+      send: (raw: string) => sentFrames.push(JSON.parse(raw) as Record<string, unknown>),
+    },
+    state: { offeredSecureLink: false, locale: "und" },
+    responseMode: "phone_fast",
+    queuedResponses: [],
+    responseInFlight: false,
+    activeResponse: undefined,
+    turnChain: Promise.resolve(),
+    inputSequence: 0,
+    interruptionGeneration: 0,
+    speechGenerationByItemId: new Map<string, number>(),
+    turnCount: 0,
+    callReferenceDigest: "a".repeat(64),
+  };
+  const receive = (event: Record<string, unknown>) => {
+    (controller as unknown as {
+      handleRealtimeEvent(activeCall: unknown, raw: string): void;
+    }).handleRealtimeEvent(call, JSON.stringify(event));
+  };
+
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_001",
+  });
+  await call.turnChain;
+  assert.deepEqual(requestedTranscripts, []);
+  assert.equal(sentFrames.length, 1);
+  assert.match(JSON.stringify(sentFrames[0]), /I didn't catch that\. Please say it again\./);
+  assert.equal(controller.snapshot().counters.officialLookups, 0);
+
+  call.responseInFlight = false;
+  call.activeResponse = undefined;
+  sentFrames.length = 0;
+  receive({
+    type: "conversation.item.input_audio_transcription.completed",
+    item_id: "item_complete_001",
+    transcript: "Who is the Wayne County Treasurer?",
+  });
+  await call.turnChain;
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "get_official_answer",
+        call_id: "call_lookup_001",
+        arguments: "{}",
+      }],
+    },
+  });
+  for (let attempt = 0; attempt < 10 && requestedTranscripts.length === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.deepEqual(requestedTranscripts, ["Who is the Wayne County Treasurer?"]);
+  assert.equal(controller.snapshot().counters.officialLookups, 1);
+}
+
 async function main(): Promise<void> {
   try {
     await testCallControlActivationAndClaims();
+    await testTranscriptionFailureNeverRequestsOfficialLookup();
   } finally {
     for (const key of PSTN_ENVIRONMENT_KEYS) {
       const value = originalPstnEnvironment[key];
