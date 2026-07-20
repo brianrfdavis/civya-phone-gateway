@@ -22,7 +22,10 @@ export async function requestPublicPhoneTurn(
   if (Buffer.byteLength(secret) < 32) throw new PhoneTurnClientError("phone_turn_not_configured");
   const rawBody = JSON.stringify(input);
   const timestamp = options.nowSeconds ?? Math.floor(Date.now() / 1_000);
-  const timeoutMs = boundedInteger(env.CIVYA_PHONE_TURN_TIMEOUT_MS, 6_000, 1_000, 10_000);
+  // Complex official-source lookups run after Realtime has already spoken a
+  // bridge. Keep the normal voice path instant while allowing the verified
+  // lookup to finish within its separate deadline.
+  const timeoutMs = boundedInteger(env.CIVYA_PHONE_TURN_TIMEOUT_MS, 12_000, 1_000, 15_000);
   let response: Response;
   try {
     response = await (options.fetch ?? fetch)(endpoint, {
