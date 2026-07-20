@@ -109,6 +109,7 @@ interface ActiveCall {
   inputSequence: number;
   interruptionGeneration: number;
   speechGenerationByItemId: Map<string, number>;
+  transcriptionRetryPending: boolean;
   pendingEffect?: PhoneRoute;
   turnCount: number;
   callReferenceDigest: string;
@@ -144,6 +145,8 @@ export class OpenAISipController {
     incompleteResponses: 0,
     cancelledResponses: 0,
     maxOutputTokenStops: 0,
+    transcriptionFailures: 0,
+    suppressedTranscriptionRetries: 0,
     officialLookups: 0,
     officialLookupFailures: 0,
     supersededLookups: 0,
@@ -407,6 +410,7 @@ export class OpenAISipController {
         inputSequence: 0,
         interruptionGeneration: 0,
         speechGenerationByItemId: new Map(),
+        transcriptionRetryPending: false,
         turnCount: 0,
         callReferenceDigest: metadata.callReferenceDigest,
         participantAlias: metadata.participant.alias,
@@ -525,6 +529,7 @@ export class OpenAISipController {
       const speechGeneration = call.speechGenerationByItemId.get(itemId) ?? call.interruptionGeneration;
       call.speechGenerationByItemId.delete(itemId);
       if (speechGeneration !== call.interruptionGeneration) return;
+      call.transcriptionRetryPending = false;
       call.inputSequence += 1;
       const sequence = call.inputSequence;
       call.queuedResponses = call.queuedResponses.filter((task) => task.kind === "approved");
@@ -540,17 +545,22 @@ export class OpenAISipController {
       call.speechGenerationByItemId.delete(itemId);
       if (speechGeneration !== call.interruptionGeneration) return;
       call.inputSequence += 1;
-      call.turnCount += 1;
+      this.metrics.transcriptionFailures += 1;
       if (!readPstnRuntimeState().enabled) {
         call.outcome = "kill_switch";
         this.enqueueSpeech(call, unavailablePhoneRoute());
         return;
       }
-      if (call.turnCount > boundedInteger(process.env.CIVYA_PSTN_MAX_TURNS, 30, 1, 100)) {
-        call.outcome = "maximum_turns";
-        this.enqueueSpeech(call, maximumTurnsPhoneRoute());
+      // A failed transcription is not a resident turn. Realtime can emit
+      // several failure events for one clipped or echoed audio fragment, so
+      // speak one recovery prompt and remain quietly ready until a real
+      // transcript succeeds. This prevents an assistant-prompt/phone-echo
+      // loop while preserving a clean retry path for the caller.
+      if (call.transcriptionRetryPending) {
+        this.metrics.suppressedTranscriptionRetries += 1;
         return;
       }
+      call.transcriptionRetryPending = true;
       // Without a transcript there is no trustworthy question to answer or
       // send to the official-information service. Ask for a clean retry in
       // every response mode instead of letting Realtime invent a tool call

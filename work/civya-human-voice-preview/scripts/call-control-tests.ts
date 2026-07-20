@@ -470,7 +470,7 @@ async function testCallControlActivationAndClaims(): Promise<void> {
       assert.equal(request.tool_choice, "auto");
       assert.deepEqual(request.tools.map((tool) => tool.name), ["get_official_answer"]);
       assert.equal(request.tools[0]?.parameters.additionalProperties, false);
-      assert.equal(request.audio.input.turn_detection.silence_duration_ms, 500);
+      assert.equal(request.audio.input.turn_detection.silence_duration_ms, 650);
       assert.equal(request.audio.input.turn_detection.create_response, false);
       assert.equal(request.audio.output.voice, "marin");
       order.push("accept");
@@ -622,6 +622,7 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
     inputSequence: 0,
     interruptionGeneration: 0,
     speechGenerationByItemId: new Map<string, number>(),
+    transcriptionRetryPending: false,
     turnCount: 0,
     callReferenceDigest: "a".repeat(64),
   };
@@ -640,6 +641,20 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
   assert.equal(sentFrames.length, 1);
   assert.match(JSON.stringify(sentFrames[0]), /I didn't catch that\. Please say it again\./);
   assert.equal(controller.snapshot().counters.officialLookups, 0);
+  assert.equal(controller.snapshot().counters.transcriptionFailures, 1);
+  assert.equal(call.turnCount, 0, "a transcription failure is not a resident turn");
+
+  call.responseInFlight = false;
+  call.activeResponse = undefined;
+  sentFrames.length = 0;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_002",
+  });
+  assert.equal(sentFrames.length, 0, "consecutive failures must not repeat the spoken retry");
+  assert.equal(controller.snapshot().counters.transcriptionFailures, 2);
+  assert.equal(controller.snapshot().counters.suppressedTranscriptionRetries, 1);
+  assert.equal(call.turnCount, 0);
 
   call.responseInFlight = false;
   call.activeResponse = undefined;
@@ -650,6 +665,7 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
     transcript: "Who is the Wayne County Treasurer?",
   });
   await call.turnChain;
+  assert.equal(call.transcriptionRetryPending, false, "a successful transcript re-arms one future retry prompt");
   receive({
     type: "response.done",
     response: {
@@ -667,6 +683,17 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
   }
   assert.deepEqual(requestedTranscripts, ["Who is the Wayne County Treasurer?"]);
   assert.equal(controller.snapshot().counters.officialLookups, 1);
+
+  call.responseInFlight = false;
+  call.activeResponse = undefined;
+  sentFrames.length = 0;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_003",
+  });
+  assert.equal(sentFrames.length, 1, "a later failure may speak one fresh retry after a successful turn");
+  assert.equal(controller.snapshot().counters.transcriptionFailures, 3);
+  assert.equal(controller.snapshot().counters.suppressedTranscriptionRetries, 1);
 }
 
 async function main(): Promise<void> {
