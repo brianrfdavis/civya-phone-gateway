@@ -60,8 +60,9 @@ Phone calls use a separate, reversible response profile. They do not inherit
 the browser's `CIVYA_VOICE_MODE`:
 
 - `CIVYA_PHONE_RESPONSE_MODE=phone_fast` is the default. It uses
-  `gpt-realtime-2.1`, Cedar, low reasoning effort, and a 500-millisecond VAD
-  silence window. The model handles ordinary conversation directly and calls
+  `gpt-realtime-2.1`, low reasoning effort, and a 500-millisecond VAD silence
+  window. The frozen Harbor profile uses Marin; the Bridge candidate selects
+  Cedar explicitly. The model handles ordinary conversation directly and calls
   `get_official_answer` before stating a current or official date, deadline,
   rate, program status, contact detail, property or case fact, balance,
   eligibility result, or completed action.
@@ -175,9 +176,10 @@ The county-demo route accepts only:
   `authoritative`.
 
 These are browser-voice settings. The phone route separately defaults to
-`phone_fast` with `gpt-realtime-2.1` and Cedar. Marin is the only other allowed
-phone voice. The renderer rollback defaults to `gpt-realtime-2.1-mini`; it is
-an explicit operator choice rather than a silent quality downgrade.
+`phone_fast` with `gpt-realtime-2.1` and Marin. Cedar is the explicit Bridge v2
+candidate; both voices remain allowlisted. The renderer rollback defaults to
+`gpt-realtime-2.1-mini`; it is an explicit operator choice rather than a silent
+quality downgrade.
 
 The session response includes the requested mode, effective mode, and frozen
 profile version. The client treats the effective mode as immutable, binds each

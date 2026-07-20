@@ -1,12 +1,16 @@
-# Civya Harbor v1
+# Maya — Civya Harbor v1
 
 - Status: frozen reference release
 - Frozen: 2026-07-17
 - Source commit: `0d7c166dd9224637c890ba8426709954dd8e186c`
 - Git tag: `civya-harbor-v1`
 - Archive branch: `codex/civya-harbor-v1-archive`
+- Immutable alias tag: `civya-maya-harbor-v1`
+- Immutable alias branch: `codex/civya-maya-harbor-v1-archive`
 
-Harbor v1 is the approved fast, warm, resident-advocate phone experience. Future
+“Maya” is the internal name for this release; the service always introduces
+itself to callers as Civya and never claims a separate human identity. Harbor v1
+is the approved fast, warm resident-guidance phone experience. Future
 voice, prompt, model, routing, or call-control work must start from the Harbor v1
 tag on a new branch. Do not move or replace the tag or archive branch.
 
@@ -67,7 +71,8 @@ per caller per hour. Live evidence showed that this operational limit accepted
 the first three calls and rejected the next eight with status 429, causing the
 reported ring-then-hang-up behavior. That limit is not part of the approved voice
 experience and is repaired on the Harbor v1 call-stability fork without changing
-the voice, prompt, model, or response profile.
+the voice, prompt, model, or response profile. The live service now uses the
+explicit stability setting `CIVYA_PSTN_PUBLIC_CALLS_PER_HOUR=20`.
 
 ## Return procedure
 
@@ -77,5 +82,6 @@ the voice, prompt, model, or response profile.
 4. Confirm `/health/ready` reports `gpt-realtime-2.1`, `marin`, `phone_fast`, and `phone-fast-v2-2026-07-17`.
 5. Place a real phone call and confirm the greeting, a complete response, interruption handling, and an official-fact lookup.
 
-The Git tag, archive branches in both repositories, GitHub releases, and hosted
-deployment histories are independent recovery points for the same approved release.
+The original and Maya-alias Git tags, archive branches in both repositories,
+GitHub releases, and hosted deployment histories are independent recovery
+points for the same approved release.

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { readPstnRuntimeState } from "../services/call-control/config";
 import {
+  BRIDGE_CANDIDATE_PHONE_VOICE,
   DEFAULT_PHONE_MODEL,
   DEFAULT_PHONE_VOICE,
   OFFICIAL_ANSWER_TOOL,
@@ -17,6 +18,7 @@ import {
   phoneProfileVersion,
   phoneTurnRequiresOfficialLookup,
   readPhoneModel,
+  readPhoneProfileEvidence,
   readPhoneResponseMode,
   readPhoneVoice,
 } from "../services/call-control/phone-fast";
@@ -73,6 +75,12 @@ function assertFastProfile(): void {
   assert.equal(readPhoneModel(env), DEFAULT_PHONE_MODEL);
   assert.equal(readPhoneVoice(env), DEFAULT_PHONE_VOICE);
   assert.equal(phoneProfileVersion("phone_fast"), PHONE_FAST_PROFILE_VERSION);
+  assert.deepEqual(readPhoneProfileEvidence(env), {
+    response_mode: "phone_fast",
+    profile_version: PHONE_FAST_PROFILE_VERSION,
+    model: "gpt-realtime-2.1",
+    voice: "marin",
+  });
 
   assert.equal(session.type, "realtime");
   assert.equal(session.model, "gpt-realtime-2.1");
@@ -97,8 +105,13 @@ function assertFastProfile(): void {
   assert.match(session.instructions, /Answer first\./);
   assert.match(session.instructions, /short, familiar words, active voice, and one idea at a time/i);
   assert.match(session.instructions, /one to three short sentences/i);
-  assert.match(session.instructions, /Always finish the sentence and thought/i);
-  assert.match(session.instructions, /Before stating any current or official[\s\S]*call\s+get_official_answer/i);
+  assert.match(session.instructions, /Finish every thought/i);
+  assert.match(session.instructions, /Natural conversation is welcome/i);
+  assert.match(session.instructions, /ask permission/i);
+  assert.match(session.instructions, /Respect a decline; do not keep redirecting/i);
+  assert.match(session.instructions, /Never use rapport to pressure disclosure, prolong the call, or imply memory/i);
+  assert.match(session.instructions, /Never[\s\S]*stereotyped/i);
+  assert.match(session.instructions, /Before stating a current or official[\s\S]*call\s+get_official_answer/i);
   assert.ok(
     session.instructions.length <= 2_000,
     `phone_fast instructions grew beyond the 2,000-character latency budget (${session.instructions.length})`,
@@ -119,6 +132,17 @@ function assertFastProfile(): void {
   assert.equal(phoneTurnRequiresOfficialLookup("Where is the Treasurer's office?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("I feel overwhelmed and need help understanding this"), false);
 
+  const bridgeCandidateSession = buildSession({
+    ...env,
+    CIVYA_PHONE_REALTIME_VOICE: BRIDGE_CANDIDATE_PHONE_VOICE,
+  });
+  assert.equal(BRIDGE_CANDIDATE_PHONE_VOICE, "cedar");
+  assert.equal(bridgeCandidateSession.audio.output.voice, "cedar");
+  assert.equal(readPhoneProfileEvidence({
+    ...env,
+    CIVYA_PHONE_REALTIME_VOICE: BRIDGE_CANDIDATE_PHONE_VOICE,
+  }).voice, "cedar");
+
   const callControlSource = readFileSync(
     new URL("../services/call-control/openai-sip.ts", import.meta.url),
     "utf8",
@@ -133,6 +157,8 @@ function assertFastProfile(): void {
     3,
     "all call-control response paths must use the uncapped Realtime speech budget",
   );
+  assert.match(callControlSource, /redactedMetadata:\s*\{[\s\S]*\.\.\.call\.profileEvidence/);
+  assert.match(callControlSource, /duration_seconds:[\s\S]*\.\.\.call\.profileEvidence/);
 }
 
 function assertRendererProfile(): void {

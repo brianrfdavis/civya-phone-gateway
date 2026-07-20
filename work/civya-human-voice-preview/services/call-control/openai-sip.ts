@@ -10,11 +10,9 @@ import {
   buildPhoneRealtimeSession,
   OFFICIAL_ANSWER_TOOL,
   PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
-  phoneProfileVersion,
   phoneTurnRequiresOfficialLookup,
-  readPhoneModel,
-  readPhoneResponseMode,
-  readPhoneVoice,
+  readPhoneProfileEvidence,
+  type PhoneProfileEvidence,
   type PhoneResponseMode,
 } from "./phone-fast";
 import { requestPublicPhoneTurn } from "./phone-turn-client";
@@ -102,6 +100,7 @@ interface ActiveCall {
   socket: WebSocket;
   state: PhoneRouterState;
   responseMode: PhoneResponseMode;
+  profileEvidence: PhoneProfileEvidence;
   queuedResponses: PhoneResponseTask[];
   responseInFlight: boolean;
   activeResponse?: PhoneResponseTask;
@@ -338,14 +337,14 @@ export class OpenAISipController {
   }
 
   snapshot() {
-    const responseMode = readPhoneResponseMode();
+    const profile = readPhoneProfileEvidence();
     return {
       activeCalls: this.activeCalls.size,
       pendingCalls: this.pendingCalls.size,
-      model: readPhoneModel(),
-      voice: readPhoneVoice(),
-      profile: responseMode,
-      profileVersion: phoneProfileVersion(responseMode),
+      model: profile.model,
+      voice: profile.voice,
+      profile: profile.response_mode,
+      profileVersion: profile.profile_version,
       transcriptionModel: TRANSCRIPTION_MODEL,
       counters: { ...this.metrics },
     };
@@ -395,12 +394,14 @@ export class OpenAISipController {
         headers: buildRealtimeConnectionHeaders(process.env.OPENAI_API_KEY, callId, fromUri),
         handshakeTimeout: 10_000,
       });
+      const profileEvidence = readPhoneProfileEvidence();
       const call: ActiveCall = {
         callId,
         fromUri,
         socket,
         state: { offeredSecureLink: false, locale: "und" },
-        responseMode: readPhoneResponseMode(),
+        responseMode: profileEvidence.response_mode,
+        profileEvidence,
         queuedResponses: [],
         responseInFlight: false,
         turnChain: Promise.resolve(),
@@ -444,6 +445,7 @@ export class OpenAISipController {
                   participant_alias: call.participantAlias,
                   admission_mode: call.admissionMode,
                   recording_state: "disabled",
+                  ...call.profileEvidence,
                 },
               });
             }
@@ -932,6 +934,7 @@ export class OpenAISipController {
       recording_state: "disabled",
       turn_count: call.turnCount,
       duration_seconds: Math.max(0, Math.round((Date.now() - call.startedAtMs) / 1_000)),
+      ...call.profileEvidence,
     };
     try {
       call.callSession = await this.jobs.controlCall({

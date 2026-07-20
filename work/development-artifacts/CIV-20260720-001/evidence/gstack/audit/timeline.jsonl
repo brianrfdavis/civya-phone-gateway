@@ -1,0 +1,30 @@
+{"skill":"cso","event":"completed","branch":"main","outcome":"success","duration_s":"600","session":"60455-1784224384","ts":"2026-07-16T18:10:37.065Z"}
+{"skill":"review","event":"started","branch":"main","session":"73560-1784227662","ts":"2026-07-16T18:47:42.714Z"}
+{"skill":"qa-only","event":"completed","branch":"main","outcome":"success","duration_s":1200,"session":"civya-qa-20260716","ts":"2026-07-16T21:18:39.247Z"}
+{"skill":"qa-only","event":"completed","branch":"main","outcome":"success","duration_s":1200,"session":"civya-qa-20260716","ts":"2026-07-16T21:19:08.921Z"}
+{"skill":"browse","event":"started","branch":"codex/wayne-county-mvp","session":"32582-1784238889","ts":"2026-07-16T21:54:49.539Z"}
+{"skill":"land-and-deploy","event":"completed","branch":"main","outcome":"abort","ts":"2026-07-16T22:15:26.635Z"}
+{"skill":"browse","event":"completed","branch":"main","outcome":"success","duration_s":"377","session":"19237-1784278000","ts":"2026-07-17T08:52:57.881Z"}
+{"skill":"browse","event":"completed","branch":"main","outcome":"success","duration_s":"720","session":"wayne-data-audit-20260717","ts":"2026-07-17T09:42:01.765Z"}
+{"skill":"browse","event":"completed","branch":"main","outcome":"success","duration_s":"720","session":"wayne-data-audit-20260717","ts":"2026-07-17T09:42:35.035Z"}
+{"skill":"review","event":"completed","branch":"codex/wayne-county-mvp","outcome":"pass","ts":"2026-07-17T10:51:54.462Z"}
+{"skill":"review","event":"completed","branch":"codex/wayne-county-mvp","outcome":"pass","ts":"2026-07-17T10:52:27.182Z"}
+{"skill":"review","event":"completed","branch":"codex/wayne-county-mvp","outcome":"clean","session":"wayne-public-lookup-2026-07-17","ts":"2026-07-17T12:17:22.969Z"}
+{"skill":"qa","event":"completed","branch":"codex/wayne-county-mvp","outcome":"pass_after_fixes","session":"wayne-public-lookup-2026-07-17","ts":"2026-07-17T12:17:23.114Z"}
+{"skill":"review","event":"completed","branch":"codex/wayne-county-mvp","outcome":"clean_after_fixes","duration_s":"0","session":"codex-wayne-mvp","ts":"2026-07-17T13:39:29.043Z"}
+{"skill":"qa","event":"completed","branch":"codex/wayne-county-mvp","outcome":"pass_live_production","duration_s":"0","session":"codex-wayne-mvp","ts":"2026-07-17T13:39:32.377Z"}
+{"skill":"ship","event":"completed","branch":"codex/wayne-county-mvp","outcome":"deployed_and_verified","duration_s":"0","session":"codex-wayne-mvp","ts":"2026-07-17T13:39:36.311Z"}
+{"skill":"autoplan","event":"started","branch":"main","session":"42567-1784300439","ts":"2026-07-17T15:00:39.904Z"}
+{"skill":"qa","event":"completed","branch":"codex/wayne-county-mvp","outcome":"success","duration_s":"900","session":"codex-voice-20260717","ts":"2026-07-17T15:17:43.256Z"}
+{"skill":"review","event":"completed","branch":"codex/pstn-public-313","outcome":"success","session":"voice-history-diagnostic","ts":"2026-07-17T17:00:08.713Z"}
+{"skill":"autoplan","event":"started","branch":"codex/pstn-public-313","session":"voice-fast-restore","ts":"2026-07-17T17:19:39.705Z"}
+{"skill":"review","event":"completed","branch":"codex/pstn-public-313","outcome":"clean after auto-fixes","duration_s":4200,"ts":"2026-07-17T18:32:10.309Z"}
+{"skill":"qa","event":"completed","branch":"codex/pstn-public-313","outcome":"96/100; no product defects; credentialed voice latency pending","duration_s":240,"ts":"2026-07-17T18:32:10.374Z"}
+{"skill":"review","event":"started","branch":"codex/civya-harbor-v1-call-stability","session":"review-harbor-v1","ts":"2026-07-17T22:29:45.786Z"}
+{"skill":"review","event":"completed","branch":"codex/civya-harbor-v1-call-stability","outcome":"success","duration_s":"420","session":"review-harbor-v1","ts":"2026-07-17T22:35:33.505Z"}
+{"skill":"qa","event":"started","branch":"codex/civya-harbor-v1-call-stability","session":"qa-harbor-v1","ts":"2026-07-17T22:35:42.526Z"}
+{"skill":"qa","event":"completed","branch":"codex/civya-harbor-v1-call-stability","outcome":"success","duration_s":"180","session":"qa-harbor-v1","ts":"2026-07-17T22:36:10.035Z"}
+{"skill":"review","event":"started","branch":"codex/wayne-county-mvp","ts":"2026-07-19T09:11:45.628Z"}
+{"skill":"qa","event":"completed","branch":"codex/wayne-county-mvp","outcome":"pass_100_no_unresolved","duration_s":"2100","session":"codex-command-center-20260719","ts":"2026-07-19T19:22:32.341Z"}
+{"skill":"review","event":"completed","branch":"codex/wayne-county-mvp","outcome":"clean_9.4","duration_s":"900","session":"codex-command-center-20260719","ts":"2026-07-19T19:22:32.401Z"}
+{"skill":"autoplan","event":"started","branch":"codex/civya-bridge-v2-cedar","session":"codex-20260720-bridge-v2","ts":"2026-07-20T04:20:23.522Z"}

@@ -10,23 +10,31 @@ import {
   OpenAISipController,
 } from "../services/call-control/openai-sip";
 import { PHONE_FAST_INSTRUCTIONS } from "../services/call-control/phone-fast";
-import { routePhoneTranscript, welcomePhoneRoute } from "../services/call-control/phone-router";
+import {
+  routePhoneControlTranscript,
+  routePhoneTranscript,
+  welcomePhoneRoute,
+} from "../services/call-control/phone-router";
 
 const state = { offeredSecureLink: false, locale: "en" as const };
 
 assert.equal(welcomePhoneRoute().intent, "welcome");
-assert.match(welcomePhoneRoute().approvedSpeech, /help you understand/i);
-assert.match(welcomePhoneRoute().approvedSpeech, /best next step/i);
-assert.match(welcomePhoneRoute().approvedSpeech, /^Hi, I'm Civya\./i);
-assert.doesNotMatch(welcomePhoneRoute().approvedSpeech, /\bAI\b|artificial intelligence/i);
-assert.doesNotMatch(welcomePhoneRoute("es").approvedSpeech, /inteligencia artificial/i);
+assert.equal(
+  welcomePhoneRoute().approvedSpeech,
+  "Hi, I'm Civya, an automated service. Tell me what happened, and I'll help you understand the next safe step. You can ask for a person or stop at any time.",
+);
+assert.match(welcomePhoneRoute("es").approvedSpeech, /servicio automatizado/i);
+assert.match(welcomePhoneRoute("es").approvedSpeech, /persona o terminar/i);
 assert.doesNotMatch(
   welcomePhoneRoute().approvedSpeech,
   /not the treasurer|official record|test call|disclaimer/i,
 );
-assert.match(PHONE_FAST_INSTRUCTIONS, /fast, capable voice advocate/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /automated resident-guidance service/i);
 assert.match(PHONE_FAST_INSTRUCTIONS, /Answer first/i);
 assert.doesNotMatch(PHONE_FAST_INSTRUCTIONS, /You are not the Wayne County Treasurer/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /Natural conversation is welcome/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /ask permission/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /Respect a decline/i);
 
 const urgent = routePhoneTranscript("I got a foreclosure notice with a deadline", state);
 assert.equal(urgent.intent, "urgent_notice");
@@ -60,6 +68,16 @@ for (const mentionOnly of [
 }
 assert.notEqual(routePhoneTranscript("Don't text me a link", state).effect, "send_secure_link");
 assert.notEqual(routePhoneTranscript("Please don't hang up", state).effect, "end_call");
+assert.equal(routePhoneControlTranscript("Do not stop the call", state), null);
+assert.equal(routePhoneControlTranscript("Please do not stop the call", state), null);
+assert.equal(routePhoneControlTranscript("No thanks", state), null);
+assert.equal(routePhoneControlTranscript("stop", state)?.effect, "end_call");
+assert.equal(routePhoneControlTranscript("Please stop", state)?.effect, "end_call");
+assert.equal(routePhoneControlTranscript("End the call", state)?.effect, "end_call");
+assert.equal(routePhoneControlTranscript("Could you end the call?", state)?.effect, "end_call");
+assert.equal(routePhoneControlTranscript("How do I stop the call from dropping?", state), null);
+assert.equal(routePhoneControlTranscript("Can you stop the call from dropping?", state), null);
+assert.equal(routePhoneControlTranscript("Could you end the call recording?", state), null);
 
 const link = routePhoneTranscript("yes", { offeredSecureLink: true, locale: "en" });
 assert.equal(link.effect, "send_secure_link");
@@ -463,7 +481,7 @@ async function testCallControlActivationAndClaims(): Promise<void> {
       };
       assert.equal(request.model, "gpt-realtime-2.1");
       assert.deepEqual(request.reasoning, { effort: "low" });
-      assert.match(request.instructions, /capable voice advocate/i);
+      assert.match(request.instructions, /automated resident-guidance service/i);
       assert.match(request.instructions, /Answer first/i);
       assert.doesNotMatch(request.instructions, /Never originate advice|not the Treasurer/i);
       assert.equal(request.max_output_tokens, "inf");

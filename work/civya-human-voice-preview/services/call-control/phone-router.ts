@@ -26,7 +26,8 @@ export interface PhoneRouterState {
 }
 
 const LINK = /\b(text me|send (?:me )?(?:a |the )?link|send (?:it|that) to me|secure link|sms|message me|yes.*(?:text|link)|env[ií]ame.*enlace|mensaje de texto)\b/i;
-const END = /\b(goodbye|bye|hang up|that(?:'s| is) all|no thanks|adios|adi[oó]s|terminar)\b/i;
+const END_COMMAND = /^\s*(?:(?:okay|ok|alright|well)[,\s]+)?(?:please\s+)?(?:goodbye|bye(?:-bye)?|hang up|that(?:'s| is) all|end(?: the call)?|stop(?: the call)?|adios|adi[oó]s|terminar)(?:\s+please)?[.!?]*\s*$/i;
+const END_REQUEST = /^\s*(?:please|can you|could you|would you|i want to|i(?:'d| would) like to)\s+(?:please\s+)?(?:hang up|end the call|stop the call)(?:\s+please)?[.!?]*\s*$/i;
 const SPANISH = /\b(espa[nñ]ol|ayuda|aviso|pago|documentos?|recordatorio|persona)\b/i;
 const HUMAN_NOUN = "(?:person|human|representative|agent|navigator|someone|somebody|operator|staff|persona|humano|representante|agente)";
 const HUMAN_REQUEST = new RegExp(
@@ -38,13 +39,13 @@ const NEGATED_HUMAN = new RegExp(
   "i",
 );
 const NEGATED_LINK = /\b(?:do not|don't|dont|not|no|never|no quiero)\b.{0,30}\b(?:text|link|sms|message|enlace|mensaje)\b/i;
-const NEGATED_END = /\b(?:do not|don't|dont|not|no|never|no quiero)\b.{0,20}\b(?:hang up|end|goodbye|bye|terminar)\b/i;
+const NEGATED_END = /\b(?:do not|don't|dont|not|no|never|no quiero)\b.{0,20}\b(?:hang up|end|stop|goodbye|bye|terminar)\b/i;
 
 export function welcomePhoneRoute(locale: "en" | "es" = "en"): PhoneRoute {
   if (locale === "es") {
     return route(
       "welcome",
-      "Hola, soy Civya. Estoy aquí para ayudarle a entender lo que pasa y encontrar el mejor próximo paso. ¿Qué está pasando?",
+      "Hola, soy Civya, un servicio automatizado. Cuénteme qué pasó y le ayudaré a entender el próximo paso seguro. Puede pedir hablar con una persona o terminar en cualquier momento.",
       "none",
       false,
       locale,
@@ -52,7 +53,7 @@ export function welcomePhoneRoute(locale: "en" | "es" = "en"): PhoneRoute {
   }
   return route(
     "welcome",
-    "Hi, I'm Civya. I'm here to help you understand what's happening and find the best next step. What's going on?",
+    "Hi, I'm Civya, an automated service. Tell me what happened, and I'll help you understand the next safe step. You can ask for a person or stop at any time.",
     "none",
     false,
     locale,
@@ -118,7 +119,7 @@ export function routePhoneControlTranscript(transcript: string, state: PhoneRout
       ? route("secure_link", "Le enviaré un enlace seguro. El enlace vence y solo puede usarse una vez. Civya nunca le pedirá por mensaje de texto su contraseña, tarjeta o cuenta bancaria.", "send_secure_link", false, locale)
       : route("secure_link", "I'll send a secure link. The link expires and can be used only once. Civya will never ask for your password, card, or bank account by text message.", "send_secure_link", false, locale);
   }
-  if (!NEGATED_END.test(normalized) && END.test(normalized)) {
+  if (!NEGATED_END.test(normalized) && (END_COMMAND.test(normalized) || END_REQUEST.test(normalized))) {
     return locale === "es"
       ? route("end", "Me alegra haber podido ayudarle. Cuídese, y llámenos cuando necesite otro paso. Adiós.", "end_call", false, locale)
       : route("end", "I'm glad I could help. Take care, and call us whenever you need the next step. Goodbye.", "end_call", false, locale);

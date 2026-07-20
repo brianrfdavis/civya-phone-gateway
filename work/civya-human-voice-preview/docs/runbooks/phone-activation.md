@@ -21,9 +21,11 @@ Caller
 
 The code path is fail-closed and has public admission with per-caller digest limits, approved multilingual speech, a 10-minute call limit, signed-webhook verification, durable turn/event deduplication, secure-link fallback, and human transfer. It never gives the phone model authority to change a case. **It is not activatable merely because those controls exist.**
 
-The default response profile is `phone_fast`: `gpt-realtime-2.1` with Cedar
-handles ordinary conversation, while current and official claims must come
-through Civya's signed public-answer boundary. The rollback profile is
+The default response profile is `phone_fast`: `gpt-realtime-2.1` handles
+ordinary conversation, while current and official claims must come through
+Civya's signed public-answer boundary. Source defaults to the frozen Harbor v1
+Marin voice. Cedar is an explicit Bridge v2 audition setting, not a silent
+default change. The rollback profile is
 `renderer`: `gpt-realtime-2.1-mini` speaks only deterministic approved text.
 This rollback is an explicit configuration change, never a silent downgrade.
 
@@ -152,7 +154,7 @@ Set and record the phone response profile independently of browser voice:
 | --- | --- | --- |
 | `CIVYA_PHONE_RESPONSE_MODE` | `phone_fast` | `renderer` |
 | `CIVYA_PHONE_REALTIME_MODEL` | `gpt-realtime-2.1` | `gpt-realtime-2.1-mini` |
-| `CIVYA_PHONE_REALTIME_VOICE` | `marin` | `marin` or qualified `cedar` |
+| `CIVYA_PHONE_REALTIME_VOICE` | `marin` (Harbor); explicit `cedar` only for the Bridge candidate | `marin` or qualified `cedar` |
 
 Changing one of these values requires a new canary call that checks the
 profile, model, voice, greeting, ordinary conversation, official lookup,

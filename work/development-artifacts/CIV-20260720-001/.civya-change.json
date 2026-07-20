@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "harnessVersion": "1.1.0",
+  "id": "CIV-20260720-001",
+  "title": "Civya Bridge v2 voice and relationship fork",
+  "risk": "R3",
+  "type": "feature",
+  "lifecycle": "active",
+  "createdAt": "2026-07-20T04:10:26.009Z",
+  "updatedAt": "2026-07-20T04:51:42.966Z",
+  "branch": "codex/civya-bridge-v2-cedar",
+  "sourceRevision": "bf58be5",
+  "gstack": {
+    "projectSlug": "brianrfdavis-Civya",
+    "lastSyncAt": "2026-07-20T04:51:42.966Z",
+    "artifacts": [
+      {
+        "category": "qa",
+        "source": "brfdavis-codex-civya-bridge-v2-cedar-eng-review-test-plan-20260720-003500.md",
+        "captured": "evidence/gstack/qa/brfdavis-codex-civya-bridge-v2-cedar-eng-review-test-plan-20260720-003500.md",
+        "sha256": "784fa5d95b7c21f8548644e525ad795eeb3e0f157c50e2b8cf450f614adda121",
+        "bytes": 2532,
+        "modifiedAt": "2026-07-20T04:35:25.850Z",
+        "capturedAt": "2026-07-20T04:51:42.963Z"
+      },
+      {
+        "category": "plan",
+        "source": "codex-civya-bridge-v2-cedar-autoplan-restore-20260720-002116.md",
+        "captured": "evidence/gstack/plan/codex-civya-bridge-v2-cedar-autoplan-restore-20260720-002116.md",
+        "sha256": "ef9b0fd40a9678fd5e239d17ec521a369ba2610ef7a69fbfa73eedd86bfd82a1",
+        "bytes": 13181,
+        "modifiedAt": "2026-07-20T04:21:31.186Z",
+        "capturedAt": "2026-07-20T04:51:42.963Z"
+      },
+      {
+        "category": "review",
+        "source": "codex-civya-bridge-v2-cedar-review-outcome-20260720-004900.md",
+        "captured": "evidence/gstack/review/codex-civya-bridge-v2-cedar-review-outcome-20260720-004900.md",
+        "sha256": "a379584b61e6858ca255c1334a652e56772a4fdf22f52508171cc5de4c47960f",
+        "bytes": 2193,
+        "modifiedAt": "2026-07-20T04:49:16.916Z",
+        "capturedAt": "2026-07-20T04:51:42.964Z"
+      },
+      {
+        "category": "review",
+        "source": "codexcivya-bridge-v2-cedar-reviews.jsonl",
+        "captured": "evidence/gstack/review/codexcivya-bridge-v2-cedar-reviews.jsonl",
+        "sha256": "95986782dc78f2366243d77fb08fad252890783d61d17641148e9af204a47c9b",
+        "bytes": 783,
+        "modifiedAt": "2026-07-20T04:35:49.834Z",
+        "capturedAt": "2026-07-20T04:51:42.964Z"
+      },
+      {
+        "category": "audit",
+        "source": "decisions.active.json",
+        "captured": "evidence/gstack/audit/decisions.active.json",
+        "sha256": "24e4668fd698714ae3ce634b106aa48cdfa3968317fa00bc3d4a815ae270afab",
+        "bytes": 2006,
+        "modifiedAt": "2026-07-20T04:35:49.913Z",
+        "capturedAt": "2026-07-20T04:51:42.964Z"
+      },
+      {
+        "category": "audit",
+        "source": "decisions.jsonl",
+        "captured": "evidence/gstack/audit/decisions.jsonl",
+        "sha256": "fbd5ca4ed648bdb363cd0476c13582c2d5ec32fd3c147dd1b80e7806dcee5b0e",
+        "bytes": 2005,
+        "modifiedAt": "2026-07-20T04:35:49.912Z",
+        "capturedAt": "2026-07-20T04:51:42.965Z"
+      },
+      {
+        "category": "review",
+        "source": "tasks-eng-review-20260720-003600.jsonl",
+        "captured": "evidence/gstack/review/tasks-eng-review-20260720-003600.jsonl",
+        "sha256": "bbe3ad9e359d8b6b50f9f1ec35a8951ba131cb6bdcf3ddfa5ebb408e3cc79049",
+        "bytes": 2246,
+        "modifiedAt": "2026-07-20T04:35:49.597Z",
+        "capturedAt": "2026-07-20T04:51:42.965Z"
+      },
+      {
+        "category": "audit",
+        "source": "timeline.jsonl",
+        "captured": "evidence/gstack/audit/timeline.jsonl",
+        "sha256": "dbea945cb0bca434441f53a50805f23b420398b2b58de15a80218093f9f84b93",
+        "bytes": 4651,
+        "modifiedAt": "2026-07-20T04:20:23.525Z",
+        "capturedAt": "2026-07-20T04:51:42.966Z"
+      }
+    ]
+  }
+}
