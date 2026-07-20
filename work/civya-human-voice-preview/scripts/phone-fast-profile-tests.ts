@@ -5,6 +5,7 @@ import { readPstnRuntimeState } from "../services/call-control/config";
 import {
   DEFAULT_PHONE_MODEL,
   DEFAULT_PHONE_VOICE,
+  NATIVE_AUDIO_RECOVERY_TOOL,
   OFFICIAL_ANSWER_TOOL,
   PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
   PHONE_FAST_INSTRUCTIONS,
@@ -95,10 +96,13 @@ function assertFastProfile(): void {
 
   assert.equal(session.instructions, PHONE_FAST_INSTRUCTIONS);
   assert.match(session.instructions, /Answer first\./);
-  assert.match(session.instructions, /short, familiar words, active voice, and one idea at a time/i);
+  assert.match(session.instructions, /familiar words, active voice, and one idea at a time/i);
   assert.match(session.instructions, /one to three short sentences/i);
-  assert.match(session.instructions, /Always finish the sentence and thought/i);
-  assert.match(session.instructions, /Before stating any current or official[\s\S]*call\s+get_official_answer/i);
+  assert.match(session.instructions, /Finish every sentence and thought/i);
+  assert.match(session.instructions, /Talk naturally about ordinary subjects/i);
+  assert.match(session.instructions, /I created you/i);
+  assert.match(session.instructions, /acknowledge them naturally and keep talking/i);
+  assert.match(session.instructions, /Before\s+stating any current or official[\s\S]*call\s+get_official_answer/i);
   assert.ok(
     session.instructions.length <= 2_000,
     `phone_fast instructions grew beyond the 2,000-character latency budget (${session.instructions.length})`,
@@ -113,11 +117,19 @@ function assertFastProfile(): void {
     properties: {},
     additionalProperties: false,
   });
+  assert.equal(NATIVE_AUDIO_RECOVERY_TOOL.name, "recover_phone_audio");
+  assert.deepEqual(NATIVE_AUDIO_RECOVERY_TOOL.parameters.required, ["transcript", "confidence", "audio_type"]);
   assert.equal(phoneTurnRequiresOfficialLookup("What is the current deadline?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("Did the Treasurer receive my payment?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("When are summer property taxes due?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("Where is the Treasurer's office?"), true);
   assert.equal(phoneTurnRequiresOfficialLookup("I feel overwhelmed and need help understanding this"), false);
+  assert.equal(phoneTurnRequiresOfficialLookup("I'm Brian Davis, your creator"), false);
+  assert.equal(
+    phoneTurnRequiresOfficialLookup("Tell me the name of the Wayne County Treasurer"),
+    false,
+    "missed official phrasings must retain the per-response auto tool fallback",
+  );
 
   const callControlSource = readFileSync(
     new URL("../services/call-control/openai-sip.ts", import.meta.url),
@@ -130,7 +142,7 @@ function assertFastProfile(): void {
   );
   assert.equal(
     callControlSource.match(/max_output_tokens:\s*PHONE_RESPONSE_MAX_OUTPUT_TOKENS/g)?.length,
-    3,
+    4,
     "all call-control response paths must use the uncapped Realtime speech budget",
   );
 }

@@ -8,6 +8,7 @@ import { identifyPhoneParticipant, phoneCallReferenceDigest, type PhoneParticipa
 import { readPstnRuntimeState } from "./config";
 import {
   buildPhoneRealtimeSession,
+  NATIVE_AUDIO_RECOVERY_TOOL,
   OFFICIAL_ANSWER_TOOL,
   PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
   phoneProfileVersion,
@@ -28,6 +29,7 @@ import {
 
 const TRANSCRIPTION_MODEL = "gpt-4o-transcribe";
 const CALL_ID = /^[A-Za-z0-9_-]{6,200}$/;
+const MAX_NATIVE_AUDIO_RECOVERIES_PER_CALL = 60;
 
 export interface SipWebhookResult {
   status: number;
@@ -86,9 +88,44 @@ interface DirectPhoneTurn {
   stage: "answer" | "lookup_pending" | "lookup_answer";
 }
 
+interface NativeAudioRecovery {
+  itemId: string;
+  sequence: number;
+  interruptionGeneration: number;
+}
+
+interface ParsedNativeAudioRecovery {
+  transcript: string;
+  confidence: "high" | "low";
+  audioType: "speech" | "echo_or_noise";
+}
+
+function parseNativeAudioRecovery(
+  functionCall: NonNullable<NonNullable<RealtimeEvent["response"]>["output"]>[number] | undefined,
+): ParsedNativeAudioRecovery | undefined {
+  if (
+    functionCall?.name !== NATIVE_AUDIO_RECOVERY_TOOL.name ||
+    !CALL_ID.test(functionCall.call_id ?? "")
+  ) return undefined;
+  try {
+    const value = JSON.parse(functionCall.arguments ?? "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const transcript = typeof value.transcript === "string" ? value.transcript.trim().slice(0, 2_000) : undefined;
+    const confidence = value.confidence === "high" || value.confidence === "low" ? value.confidence : undefined;
+    const audioType = value.audio_type === "speech" || value.audio_type === "echo_or_noise"
+      ? value.audio_type
+      : undefined;
+    if (transcript === undefined || !confidence || !audioType) return undefined;
+    return { transcript, confidence, audioType };
+  } catch {
+    return undefined;
+  }
+}
+
 type PhoneResponseTask =
   | { kind: "approved"; route: PhoneRoute }
-  | { kind: "direct"; turn: DirectPhoneTurn };
+  | { kind: "direct"; turn: DirectPhoneTurn }
+  | { kind: "native_audio_recovery"; turn: NativeAudioRecovery };
 
 interface CallAttachmentMetadata {
   participant: PhoneParticipant;
@@ -110,6 +147,8 @@ interface ActiveCall {
   interruptionGeneration: number;
   speechGenerationByItemId: Map<string, number>;
   transcriptionRetryPending: boolean;
+  unintelligibleRecoveryCount: number;
+  nativeAudioRecoveryAttemptCount: number;
   pendingEffect?: PhoneRoute;
   turnCount: number;
   callReferenceDigest: string;
@@ -147,6 +186,11 @@ export class OpenAISipController {
     maxOutputTokenStops: 0,
     transcriptionFailures: 0,
     suppressedTranscriptionRetries: 0,
+    nativeAudioRecoveryAttempts: 0,
+    nativeAudioRecoveries: 0,
+    nativeAudioRecoveryFailures: 0,
+    nativeAudioRecoveryPrompts: 0,
+    nativeAudioEchoSuppressions: 0,
     officialLookups: 0,
     officialLookupFailures: 0,
     supersededLookups: 0,
@@ -411,6 +455,8 @@ export class OpenAISipController {
         interruptionGeneration: 0,
         speechGenerationByItemId: new Map(),
         transcriptionRetryPending: false,
+        unintelligibleRecoveryCount: 0,
+        nativeAudioRecoveryAttemptCount: 0,
         turnCount: 0,
         callReferenceDigest: metadata.callReferenceDigest,
         participantAlias: metadata.participant.alias,
@@ -509,7 +555,9 @@ export class OpenAISipController {
       if (event.item_id && CALL_ID.test(event.item_id)) {
         call.speechGenerationByItemId.set(event.item_id, call.interruptionGeneration);
       }
+      const droppedNativeRecovery = call.queuedResponses.some((task) => task.kind === "native_audio_recovery");
       call.queuedResponses = call.queuedResponses.filter((task) => task.kind === "approved");
+      if (droppedNativeRecovery) call.transcriptionRetryPending = false;
       if (call.pendingEffect) {
         call.pendingEffect = undefined;
         call.responseInFlight = false;
@@ -530,6 +578,7 @@ export class OpenAISipController {
       call.speechGenerationByItemId.delete(itemId);
       if (speechGeneration !== call.interruptionGeneration) return;
       call.transcriptionRetryPending = false;
+      call.unintelligibleRecoveryCount = 0;
       call.inputSequence += 1;
       const sequence = call.inputSequence;
       call.queuedResponses = call.queuedResponses.filter((task) => task.kind === "approved");
@@ -545,17 +594,34 @@ export class OpenAISipController {
       call.speechGenerationByItemId.delete(itemId);
       if (speechGeneration !== call.interruptionGeneration) return;
       call.inputSequence += 1;
+      const sequence = call.inputSequence;
       this.metrics.transcriptionFailures += 1;
       if (!readPstnRuntimeState().enabled) {
         call.outcome = "kill_switch";
         this.enqueueSpeech(call, unavailablePhoneRoute());
         return;
       }
-      // A failed transcription is not a resident turn. Realtime can emit
-      // several failure events for one clipped or echoed audio fragment, so
-      // speak one recovery prompt and remain quietly ready until a real
-      // transcript succeeds. This prevents an assistant-prompt/phone-echo
-      // loop while preserving a clean retry path for the caller.
+      if (call.responseMode === "phone_fast") {
+        // Realtime consumes the committed audio directly; input transcription
+        // is an asynchronous helper and may fail even when the speech-to-speech
+        // model can understand the resident. The recovery response is text-only
+        // and exposes only a transcription tool; it cannot answer or act.
+        if (call.nativeAudioRecoveryAttemptCount >= MAX_NATIVE_AUDIO_RECOVERIES_PER_CALL) {
+          this.metrics.suppressedTranscriptionRetries += 1;
+          return;
+        }
+        call.nativeAudioRecoveryAttemptCount += 1;
+        this.enqueueNativeAudioRecovery(call, {
+          itemId,
+          sequence,
+          interruptionGeneration: speechGeneration,
+        });
+        this.metrics.nativeAudioRecoveryAttempts += 1;
+        return;
+      }
+      // Renderer mode cannot interpret audio directly. Realtime can emit
+      // several failure events for one clipped or echoed fragment, so keep
+      // its exact-speech retry prompt bounded until a transcript succeeds.
       if (call.transcriptionRetryPending) {
         this.metrics.suppressedTranscriptionRetries += 1;
         return;
@@ -601,6 +667,10 @@ export class OpenAISipController {
         this.metrics.cancelledResponses += 1;
       }
       const functionCall = event.response?.output?.find((item) => item.type === "function_call");
+      if (active.kind === "native_audio_recovery") {
+        this.finishNativeAudioRecovery(call, active.turn, completed ? functionCall : undefined);
+        return;
+      }
       if (completed && active.kind === "direct" && active.turn.stage === "answer" && functionCall) {
         const lookupTurn = { ...active.turn, stage: "lookup_pending" as const };
         call.activeResponse = { kind: "direct", turn: lookupTurn };
@@ -633,6 +703,10 @@ export class OpenAISipController {
     sequence: number,
     speechGeneration: number,
   ): Promise<void> {
+    if (
+      sequence !== call.inputSequence ||
+      speechGeneration !== call.interruptionGeneration
+    ) return;
     if (!readPstnRuntimeState().enabled) {
       call.outcome = "kill_switch";
       this.enqueueSpeech(call, unavailablePhoneRoute());
@@ -653,7 +727,10 @@ export class OpenAISipController {
     if (control) {
       route = control;
     } else if (call.responseMode === "phone_fast") {
-      if (sequence !== call.inputSequence) return;
+      if (
+        sequence !== call.inputSequence ||
+        speechGeneration !== call.interruptionGeneration
+      ) return;
       this.enqueueDirectResponse(call, {
         itemId,
         transcript: normalizedTranscript,
@@ -684,7 +761,10 @@ export class OpenAISipController {
         route = routePhoneTranscript(normalizedTranscript, call.state);
       }
     }
-    if (sequence !== call.inputSequence) return;
+    if (
+      sequence !== call.inputSequence ||
+      speechGeneration !== call.interruptionGeneration
+    ) return;
     call.state = { offeredSecureLink: route.offerSecureLink, locale: route.locale };
     this.enqueueSpeech(call, route);
   }
@@ -903,6 +983,70 @@ export class OpenAISipController {
     this.flush(call);
   }
 
+  private enqueueNativeAudioRecovery(call: ActiveCall, turn: NativeAudioRecovery): void {
+    // Only the newest failed audio item remains queued. An in-flight recovery
+    // is generation-fenced and will release this task when it completes or is
+    // cancelled, so later real speech never inherits an indefinite latch.
+    call.queuedResponses = call.queuedResponses.filter((task) => task.kind !== "native_audio_recovery");
+    call.queuedResponses.push({ kind: "native_audio_recovery", turn });
+    this.flush(call);
+  }
+
+  private finishNativeAudioRecovery(
+    call: ActiveCall,
+    turn: NativeAudioRecovery,
+    functionCall: NonNullable<NonNullable<RealtimeEvent["response"]>["output"]>[number] | undefined,
+  ): void {
+    call.activeResponse = undefined;
+    call.responseInFlight = false;
+    call.transcriptionRetryPending = false;
+    if (
+      turn.sequence !== call.inputSequence ||
+      turn.interruptionGeneration !== call.interruptionGeneration
+    ) {
+      this.flush(call);
+      return;
+    }
+
+    const recovered = parseNativeAudioRecovery(functionCall);
+    if (recovered?.audioType === "echo_or_noise") {
+      this.metrics.nativeAudioEchoSuppressions += 1;
+      this.flush(call);
+      return;
+    }
+    if (recovered?.confidence === "high" && recovered.transcript) {
+      call.unintelligibleRecoveryCount = 0;
+      this.metrics.nativeAudioRecoveries += 1;
+      call.turnChain = call.turnChain
+        .then(() => this.processTranscript(
+          call,
+          turn.itemId,
+          recovered.transcript,
+          turn.sequence,
+          turn.interruptionGeneration,
+        ))
+        .catch(() => undefined);
+      return;
+    }
+
+    this.metrics.nativeAudioRecoveryFailures += 1;
+    call.unintelligibleRecoveryCount += 1;
+    if (call.unintelligibleRecoveryCount <= 2) {
+      this.metrics.nativeAudioRecoveryPrompts += 1;
+      this.enqueueSpeech(call, {
+        intent: "menu",
+        approvedSpeech: call.unintelligibleRecoveryCount === 1
+          ? "I missed that. Please say it once more in one short sentence."
+          : "I'm still here, but this phone line is breaking up. Try calling again, or say person for human help.",
+        effect: "none",
+        offerSecureLink: false,
+        locale: call.state.locale === "es" ? "es" : "en",
+      });
+      return;
+    }
+    this.flush(call);
+  }
+
   private flush(call: ActiveCall): void {
     if (call.responseInFlight || call.socket.readyState !== WebSocket.OPEN) return;
     const task = call.queuedResponses.shift();
@@ -923,15 +1067,45 @@ export class OpenAISipController {
       }));
       return;
     }
+    if (task.kind === "native_audio_recovery") {
+      if (
+        task.turn.sequence !== call.inputSequence ||
+        task.turn.interruptionGeneration !== call.interruptionGeneration
+      ) {
+        call.activeResponse = undefined;
+        call.responseInFlight = false;
+        this.flush(call);
+        return;
+      }
+      call.socket.send(JSON.stringify({
+        type: "response.create",
+        response: {
+          conversation: "none",
+          input: [{ type: "item_reference", id: task.turn.itemId }],
+          output_modalities: ["text"],
+          tools: [NATIVE_AUDIO_RECOVERY_TOOL],
+          tool_choice: "required",
+          max_output_tokens: PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
+          instructions: "Transcribe the referenced caller audio with recover_phone_audio. Do not answer the caller or generate resident-facing content.",
+        },
+      }));
+      return;
+    }
+    const requiresOfficialLookup = phoneTurnRequiresOfficialLookup(task.turn.transcript);
     call.socket.send(JSON.stringify({
       type: "response.create",
       response: {
         output_modalities: ["audio"],
         max_output_tokens: PHONE_RESPONSE_MAX_OUTPUT_TOKENS,
-        ...(phoneTurnRequiresOfficialLookup(task.turn.transcript) ? {
+        ...(requiresOfficialLookup ? {
           tools: [OFFICIAL_ANSWER_TOOL],
           tool_choice: "required",
-        } : {}),
+        } : {
+          // Preserve the prompt-directed fallback for official phrasings that
+          // the fast regex does not force. Ordinary conversation stays direct.
+          tools: [OFFICIAL_ANSWER_TOOL],
+          tool_choice: "auto",
+        }),
       },
     }));
   }

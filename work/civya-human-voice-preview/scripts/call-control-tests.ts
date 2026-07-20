@@ -630,6 +630,8 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
     interruptionGeneration: 0,
     speechGenerationByItemId: new Map<string, number>(),
     transcriptionRetryPending: false,
+    unintelligibleRecoveryCount: 0,
+    nativeAudioRecoveryAttemptCount: 0,
     turnCount: 0,
     callReferenceDigest: "a".repeat(64),
   };
@@ -643,36 +645,122 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
     type: "conversation.item.input_audio_transcription.failed",
     item_id: "item_failed_001",
   });
-  await call.turnChain;
   assert.deepEqual(requestedTranscripts, []);
   assert.equal(sentFrames.length, 1);
-  assert.match(JSON.stringify(sentFrames[0]), /I didn't catch that\. Please say it again\./);
+  assert.deepEqual(
+    (sentFrames[0]?.response as { input?: unknown[] })?.input,
+    [{ type: "item_reference", id: "item_failed_001" }],
+  );
+  assert.equal((sentFrames[0]?.response as { conversation?: string })?.conversation, "none");
+  assert.deepEqual((sentFrames[0]?.response as { output_modalities?: string[] })?.output_modalities, ["text"]);
+  assert.equal((sentFrames[0]?.response as { tool_choice?: string })?.tool_choice, "required");
+  assert.match(JSON.stringify(sentFrames[0]), /recover_phone_audio/);
+  assert.doesNotMatch(JSON.stringify(sentFrames[0]), /get_official_answer/);
   assert.equal(controller.snapshot().counters.officialLookups, 0);
   assert.equal(controller.snapshot().counters.transcriptionFailures, 1);
   assert.equal(call.turnCount, 0, "a transcription failure is not a resident turn");
 
-  call.responseInFlight = false;
-  call.activeResponse = undefined;
-  sentFrames.length = 0;
+  // A later failed item supersedes the first recovery without becoming dead
+  // air. The in-flight response is generation/sequence-fenced, then the newest
+  // exact audio item is recovered.
   receive({
     type: "conversation.item.input_audio_transcription.failed",
     item_id: "item_failed_002",
   });
-  assert.equal(sentFrames.length, 0, "consecutive failures must not repeat the spoken retry");
-  assert.equal(controller.snapshot().counters.transcriptionFailures, 2);
-  assert.equal(controller.snapshot().counters.suppressedTranscriptionRetries, 1);
-  assert.equal(call.turnCount, 0);
-
-  call.responseInFlight = false;
-  call.activeResponse = undefined;
-  sentFrames.length = 0;
+  assert.equal(sentFrames.length, 1);
+  assert.equal(controller.snapshot().counters.nativeAudioRecoveryAttempts, 2);
   receive({
-    type: "conversation.item.input_audio_transcription.completed",
-    item_id: "item_complete_001",
-    transcript: "Who is the Wayne County Treasurer?",
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_001",
+        arguments: JSON.stringify({
+          transcript: "stale words",
+          confidence: "high",
+          audio_type: "speech",
+        }),
+      }],
+    },
+  });
+  assert.equal(sentFrames.length, 2);
+  assert.deepEqual(
+    (sentFrames[1]?.response as { input?: unknown[] })?.input,
+    [{ type: "item_reference", id: "item_failed_002" }],
+  );
+  assert.equal(controller.snapshot().counters.nativeAudioRecoveries, 0);
+
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_002",
+        arguments: JSON.stringify({
+          transcript: "I'm Brian Davis, your creator.",
+          confidence: "high",
+          audio_type: "speech",
+        }),
+      }],
+    },
   });
   await call.turnChain;
-  assert.equal(call.transcriptionRetryPending, false, "a successful transcript re-arms one future retry prompt");
+  assert.equal(controller.snapshot().counters.nativeAudioRecoveries, 1);
+  assert.equal(call.turnCount, 1);
+  assert.equal(sentFrames.length, 3);
+  assert.equal((sentFrames[2]?.response as { tool_choice?: string })?.tool_choice, "auto");
+  assert.match(JSON.stringify(sentFrames[2]), /get_official_answer/);
+
+  receive({
+    type: "response.done",
+    response: { status: "completed", output: [] },
+  });
+  assert.equal(controller.snapshot().counters.directResponses, 1);
+
+  receive({
+    type: "conversation.item.input_audio_transcription.completed",
+    item_id: "item_complete_missed_phrase",
+    transcript: "Tell me the name of the Wayne County Treasurer",
+  });
+  await call.turnChain;
+  const missedPhraseFrame = sentFrames.at(-1)?.response as { tools?: Array<{ name?: string }>; tool_choice?: string };
+  assert.equal(missedPhraseFrame.tool_choice, "auto");
+  assert.deepEqual(missedPhraseFrame.tools?.map((tool) => tool.name), ["get_official_answer"]);
+  receive({
+    type: "response.done",
+    response: { status: "completed", output: [] },
+  });
+
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_official",
+  });
+  const recoveredOfficialInput = sentFrames.at(-1)?.response as { input?: unknown[] };
+  assert.deepEqual(recoveredOfficialInput.input, [{ type: "item_reference", id: "item_failed_official" }]);
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_official",
+        arguments: JSON.stringify({
+          transcript: "Who is the Wayne County Treasurer?",
+          confidence: "high",
+          audio_type: "speech",
+        }),
+      }],
+    },
+  });
+  await call.turnChain;
+  const officialFrame = sentFrames.at(-1)?.response as { tools?: Array<{ name?: string }>; tool_choice?: string };
+  assert.equal(officialFrame.tool_choice, "required");
+  assert.deepEqual(officialFrame.tools?.map((tool) => tool.name), ["get_official_answer"]);
   receive({
     type: "response.done",
     response: {
@@ -691,15 +779,169 @@ async function testTranscriptionFailureNeverRequestsOfficialLookup(): Promise<vo
   assert.deepEqual(requestedTranscripts, ["Who is the Wayne County Treasurer?"]);
   assert.equal(controller.snapshot().counters.officialLookups, 1);
 
-  call.responseInFlight = false;
-  call.activeResponse = undefined;
-  sentFrames.length = 0;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  receive({
+    type: "response.done",
+    response: { status: "completed", output: [] },
+  });
+
+  const beforeLowRecovery = sentFrames.length;
   receive({
     type: "conversation.item.input_audio_transcription.failed",
     item_id: "item_failed_003",
   });
-  assert.equal(sentFrames.length, 1, "a later failure may speak one fresh retry after a successful turn");
-  assert.equal(controller.snapshot().counters.transcriptionFailures, 3);
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_003",
+        arguments: JSON.stringify({ transcript: "", confidence: "low", audio_type: "speech" }),
+      }],
+    },
+  });
+  assert.equal(sentFrames.length, beforeLowRecovery + 2);
+  assert.match(JSON.stringify(sentFrames.at(-1)), /Please say it once more in one short sentence/);
+  assert.equal(controller.snapshot().counters.nativeAudioRecoveryPrompts, 1);
+  assert.equal(controller.snapshot().counters.transcriptionFailures, 4);
+
+  receive({
+    type: "response.done",
+    response: { status: "completed", output: [] },
+  });
+
+  const beforeSecondLow = sentFrames.length;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_004",
+  });
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_004",
+        arguments: JSON.stringify({ transcript: "", confidence: "low", audio_type: "speech" }),
+      }],
+    },
+  });
+  assert.equal(sentFrames.length, beforeSecondLow + 2);
+  assert.match(JSON.stringify(sentFrames.at(-1)), /phone line is breaking up/i);
+  assert.equal(controller.snapshot().counters.nativeAudioRecoveryPrompts, 2);
+  receive({
+    type: "response.done",
+    response: { status: "completed", output: [] },
+  });
+
+  const beforeThirdLow = sentFrames.length;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_005",
+  });
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_005",
+        arguments: JSON.stringify({ transcript: "", confidence: "low", audio_type: "speech" }),
+      }],
+    },
+  });
+  assert.equal(sentFrames.length, beforeThirdLow + 1, "a third low-confidence result must not start a prompt loop");
+  assert.equal(controller.snapshot().counters.nativeAudioRecoveryPrompts, 2);
+
+  const beforeEcho = sentFrames.length;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_006",
+  });
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_006",
+        arguments: JSON.stringify({ transcript: "", confidence: "low", audio_type: "echo_or_noise" }),
+      }],
+    },
+  });
+  assert.equal(sentFrames.length, beforeEcho + 1, "echo/noise recovery must never speak back to itself");
+  assert.equal(controller.snapshot().counters.nativeAudioEchoSuppressions, 1);
+
+  const beforeCancelled = sentFrames.length;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_007",
+  });
+  receive({
+    type: "input_audio_buffer.speech_started",
+    item_id: "item_failed_008",
+  });
+  receive({
+    type: "response.done",
+    response: { status: "cancelled", output: [] },
+  });
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_008",
+  });
+  assert.equal(sentFrames.length, beforeCancelled + 2, "a cancelled recovery must not latch the next failed caller turn");
+  assert.deepEqual(
+    (sentFrames.at(-1)?.response as { input?: unknown[] })?.input,
+    [{ type: "item_reference", id: "item_failed_008" }],
+  );
+
+  // A new utterance between native recovery completion and the deferred turn
+  // processor must fence the recovered stale text before it can speak.
+  let releaseTurnChain!: () => void;
+  call.turnChain = new Promise<void>((resolve) => {
+    releaseTurnChain = resolve;
+  });
+  receive({
+    type: "response.done",
+    response: {
+      status: "completed",
+      output: [{
+        type: "function_call",
+        name: "recover_phone_audio",
+        call_id: "call_recover_008",
+        arguments: JSON.stringify({
+          transcript: "This recovered answer is now stale",
+          confidence: "high",
+          audio_type: "speech",
+        }),
+      }],
+    },
+  });
+  const turnCountBeforeStaleRecovery = call.turnCount;
+  const beforeStaleTurn = sentFrames.length;
+  receive({
+    type: "input_audio_buffer.speech_started",
+    item_id: "item_failed_009",
+  });
+  releaseTurnChain();
+  await call.turnChain;
+  assert.equal(sentFrames.length, beforeStaleTurn, "new speech must fence deferred recovered text");
+  assert.equal(call.turnCount, turnCountBeforeStaleRecovery, "stale recovered text must not consume a resident turn");
+
+  call.nativeAudioRecoveryAttemptCount = 60;
+  const beforeRecoveryCap = sentFrames.length;
+  receive({
+    type: "conversation.item.input_audio_transcription.failed",
+    item_id: "item_failed_009",
+  });
+  assert.equal(sentFrames.length, beforeRecoveryCap, "the per-call recovery cap must bound line-noise inference");
   assert.equal(controller.snapshot().counters.suppressedTranscriptionRetries, 1);
 }
 
