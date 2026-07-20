@@ -7,8 +7,8 @@
 | Product version | `civya-bridge-v2-2026-07-20` candidate |
 | Status | Paused before production release |
 | Risk tier | R3 |
-| Candidate/build | `codex/civya-bridge-v2-cedar`; immutable commit recorded after QA |
-| Source revision | Pending final candidate commit |
+| Candidate/build | `codex/civya-bridge-v2-cedar` at `107728d` |
+| Source revision | `107728d` |
 | Release Manager | Named owner pending |
 | Window | No production window authorized |
 
@@ -35,7 +35,7 @@ record. Maya — Harbor v1 remains live and independently recoverable.
 
 ## Candidate provenance
 
-- Build/test: full `npm test`, focused phone/foundation/security suites, TypeScript, and production `next build` passed locally.
+- Build/test: full `npm test` after the final code changes, focused phone/foundation/security suites, TypeScript, production `next build`, and local browser smoke passed.
 - Configuration: `phone_fast`, `gpt-realtime-2.1`, explicit `cedar`, low reasoning, 500 ms VAD, `inf`, `gpt-4o-transcribe`.
 - Candidate tested equals candidate released: No release occurred.
 

@@ -26,11 +26,11 @@ Preserve the approved fast phone experience as the internal release **Maya — H
 Do not edit between the markers. `scripts/civya-change.mjs` regenerates this section.
 
 <!-- CIVYA:MANAGED:START -->
-**Generated:** 2026-07-20T04:51:42.974Z  
+**Generated:** 2026-07-20T04:56:45.050Z  
 **Harness:** 1.1.0  
-**Branch/source:** `codex/civya-bridge-v2-cedar` / `bf58be5`  
+**Branch/source:** `codex/civya-bridge-v2-cedar` / `107728d`  
 **GStack project:** brianrfdavis-Civya  
-**GStack evidence:** audit: 3, plan: 1, qa: 1, review: 3
+**GStack evidence:** audit: 3, plan: 1, qa: 2, review: 3
 
 ### Required documents
 
@@ -52,7 +52,8 @@ Do not edit between the markers. `scripts/civya-change.mjs` regenerates this sec
 | qa | `brfdavis-codex-civya-bridge-v2-cedar-eng-review-test-plan-20260720-003500.md` | [snapshot](evidence/gstack/qa/brfdavis-codex-civya-bridge-v2-cedar-eng-review-test-plan-20260720-003500.md) | `784fa5d95b7c…` | 2026-07-20T04:35:25.850Z |
 | plan | `codex-civya-bridge-v2-cedar-autoplan-restore-20260720-002116.md` | [snapshot](evidence/gstack/plan/codex-civya-bridge-v2-cedar-autoplan-restore-20260720-002116.md) | `ef9b0fd40a96…` | 2026-07-20T04:21:31.186Z |
 | review | `codex-civya-bridge-v2-cedar-review-outcome-20260720-004900.md` | [snapshot](evidence/gstack/review/codex-civya-bridge-v2-cedar-review-outcome-20260720-004900.md) | `a379584b61e6…` | 2026-07-20T04:49:16.916Z |
-| review | `codexcivya-bridge-v2-cedar-reviews.jsonl` | [snapshot](evidence/gstack/review/codexcivya-bridge-v2-cedar-reviews.jsonl) | `95986782dc78…` | 2026-07-20T04:35:49.834Z |
+| qa | `codex-civya-bridge-v2-cedar-test-outcome-20260720-005600.md` | [snapshot](evidence/gstack/qa/codex-civya-bridge-v2-cedar-test-outcome-20260720-005600.md) | `6668bcac8b74…` | 2026-07-20T04:55:44.078Z |
+| review | `codexcivya-bridge-v2-cedar-reviews.jsonl` | [snapshot](evidence/gstack/review/codexcivya-bridge-v2-cedar-reviews.jsonl) | `ee44315e7763…` | 2026-07-20T04:56:10.742Z |
 | audit | `decisions.active.json` | [snapshot](evidence/gstack/audit/decisions.active.json) | `24e4668fd698…` | 2026-07-20T04:35:49.913Z |
 | audit | `decisions.jsonl` | [snapshot](evidence/gstack/audit/decisions.jsonl) | `fbd5ca4ed648…` | 2026-07-20T04:35:49.912Z |
 | review | `tasks-eng-review-20260720-003600.jsonl` | [snapshot](evidence/gstack/review/tasks-eng-review-20260720-003600.jsonl) | `bbe3ad9e359d…` | 2026-07-20T04:35:49.597Z |

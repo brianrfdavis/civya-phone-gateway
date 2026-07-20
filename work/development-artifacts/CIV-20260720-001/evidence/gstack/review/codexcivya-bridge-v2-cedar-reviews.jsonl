@@ -2,3 +2,4 @@
 {"skill":"plan-eng-review","timestamp":"2026-07-20T04:35:49Z","status":"issues_open","unresolved":0,"critical_gaps":4,"issues_found":9,"mode":"FULL_REVIEW","via":"autoplan","commit":"bf58be5"}
 {"skill":"autoplan-voices","timestamp":"2026-07-20T04:35:49Z","status":"clean","source":"codex+subagent","phase":"ceo","via":"autoplan","consensus_confirmed":4,"consensus_disagree":2,"commit":"bf58be5"}
 {"skill":"autoplan-voices","timestamp":"2026-07-20T04:35:49Z","status":"issues_open","source":"codex+subagent","phase":"eng","via":"autoplan","consensus_confirmed":5,"consensus_disagree":1,"commit":"bf58be5"}
+{"skill":"review","timestamp":"2026-07-20T04:58:00Z","status":"issues_open","unresolved":1,"critical_gaps":1,"issues_found":3,"issues_fixed":2,"quality_score":8.5,"via":"independent_subagent","commit":"107728d","finding":"Interrupted opening disclosure remains unproven on real SIP; negated-stop and durable-profile findings fixed."}

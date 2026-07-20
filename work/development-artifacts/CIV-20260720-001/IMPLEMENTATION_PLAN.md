@@ -150,7 +150,7 @@ No schema, memory, permission, or provider-boundary change.
 ## Rollout and rollback
 
 - Feature stages: source-only candidate → automated checks → staged blind prompt-only and voice-only comparisons → explicitly authorized limited phone audition → production decision.
-- Candidate identity: `codex/civya-bridge-v2-cedar`; profile `civya-bridge-v2-2026-07-20`; immutable commit after validation.
+- Candidate identity: `codex/civya-bridge-v2-cedar` at `107728d`; profile `civya-bridge-v2-2026-07-20`.
 - Health signals: ready endpoint model/voice/profile; latency and complete-sentence evidence; no P0/P1 review finding.
 - Stop thresholds: any stereotype/deception finding; repeated disclosure; official-fact bypass; sentence truncation; material latency regression; failed human/stop control.
 - Rollback: deploy `civya-maya-harbor-v1`/Harbor commit and set `CIVYA_PHONE_REALTIME_VOICE=marin`; confirm health and place a real test call.
@@ -205,7 +205,7 @@ Rollback: verify refs/config and perform sandbox restore before production
 - [x] Install the concise, permissioned Join → Bridge → Next prompt with consequential-topic and dignity boundaries.
 - [x] Add the required automated-service opening, correct decline/stop controls, and lock English/Spanish/identity contracts honestly.
 - [x] Add the candidate release tuple, blind PSTN evaluation protocol, rollback record, immutable Harbor aliases, and durable call-profile attribution.
-- [ ] Complete automated review/QA record; leave PSTN, interrupted-disclosure, bilingual, representative-research, non-AI-fallback, privacy, and named R3 approvals blocked before activation.
+- [x] Complete automated review/QA record; leave PSTN, interrupted-disclosure, bilingual, representative-research, non-AI-fallback, privacy, and named R3 approvals blocked before activation.
 
 ## Plan approval
 

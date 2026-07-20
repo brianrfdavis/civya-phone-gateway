@@ -6,7 +6,7 @@
 | Template version | 1.0.0 |
 | Artifact version | 1.0.0 |
 | Status | Changes required before production activation |
-| Candidate/revision | `codex/civya-bridge-v2-cedar`; immutable commit recorded after QA |
+| Candidate/revision | `codex/civya-bridge-v2-cedar` at `107728d` |
 | Brief/plan | `FEATURE_BRIEF.md`; `IMPLEMENTATION_PLAN.md` |
 | Risk tier | R3 |
 | Reviewer | Independent read-only engineering subagent; builder disposition review |
@@ -39,7 +39,7 @@ The implementation delivers the bounded source candidate without changing the mo
 | Authorization and security | Pass | No permission/tool/provider change; official and deterministic effect gates unchanged |
 | Privacy and data lifecycle | Pass for code / approval pending | No new caller content; only non-sensitive model/voice/profile metadata added; research protocol pending |
 | Accessibility and UX states | Concern | Voice copy is plain and short; real PSTN, accent, interruption, and qualified Spanish evidence pending |
-| Tests and regression protection | Pass for static/automated / Concern for live | Full automated suite/build pass; real SIP event-machine and listening tests blocked |
+| Tests and regression protection | Pass for static/automated/browser smoke / Concern for live | Full automated suite/build and local browser smoke pass; real SIP event-machine and listening tests blocked |
 | Reliability and operations | Pass with blocker | Durable profile attribution fixed; non-AI fallback and live latency not proven |
 | Migration, rollout, rollback | Pass for source | No migration; Harbor refs/config documented; drain-before-rollback required |
 | Documentation and records | Pass | Harbor aliases, candidate tuple, blind protocol, blockers, and rollback recorded |
@@ -80,8 +80,8 @@ The implementation delivers the bounded source candidate without changing the mo
 
 | Finding | Correction revision | Verification | Result |
 |---|---|---|---|
-| Negated stop | Working candidate | Focused call-control tests | Resolved |
-| Durable profile attribution | Working candidate | Profile tests, static lifecycle assertion, typecheck/build | Resolved |
+| Negated stop | `107728d` | Focused call-control tests | Resolved |
+| Durable profile attribution | `107728d` | Profile tests, static lifecycle assertion, typecheck/build | Resolved |
 | Interrupted disclosure | Not corrected without real event evidence | Release protocol inspection | Open P1 |
 
 ## Recommendation

@@ -6,7 +6,7 @@
 | Template version | 1.0.0 |
 | Artifact version | 1.0.0 |
 | Status | Automated stage passed; production acceptance blocked |
-| Candidate/build | `codex/civya-bridge-v2-cedar`; immutable commit recorded after QA |
+| Candidate/build | `codex/civya-bridge-v2-cedar` at `107728d` |
 | Risk tier | R3 |
 | QA owner | Codex QA context; named release QA pending |
 | Test window | 2026-07-20, America/Detroit |
@@ -26,12 +26,12 @@
 | Alternate and boundary paths | Pass automated | Invalid voice fallback, renderer, direct/polite/negated/explanatory stop, no-thanks decline |
 | Resume/retry/duplicate | Pass regression | Full repository call/event/provider suites |
 | Roles/permissions/isolation | No change; pass regression | Full `npm test` and foundation/security suites |
-| Accessibility/manual | Blocked | Real phone comprehension, accents, interruption, and Spanish require people/audio |
+| Accessibility/manual | Browser smoke passed; phone blocked | Named browser controls/landmarks observed; real phone comprehension, accents, interruption, and Spanish require people/audio |
 | Integration/provider failure | Blocked for release | Non-AI fallback and real SIP event evidence missing |
 | Migration/rollback | Pass source / blocked exercise | No migration; Harbor refs/tuple verified; sandbox drain/rollback still required |
 | Performance/capacity | Contract pass / measurement blocked | 1,872-char prompt, low reasoning, 500 ms VAD, `inf`; p50/p95 not measured |
 | Observability/audit/redaction | Pass | Exact model/voice/mode/version attached to redacted call lifecycle |
-| Regression suite | Pass | Full `npm test`, focused suites, typecheck, build |
+| Regression suite | Pass | Full `npm test` after final code changes, focused suites, typecheck, build |
 
 ## Test cases
 
@@ -44,7 +44,7 @@
 | AT-05 | No thanks does not hang up; explicit stop does | Critical | Pass | Direct, polite, negated, and explanatory regression cases |
 | AT-06 | Official lookup and private-data boundaries remain | Critical | Pass | Official research, phone turn, full regression |
 | AT-07 | Durable calls identify model/voice/mode/version | High | Pass | Profile helper and lifecycle metadata assertions |
-| AT-08 | Full application compiles and repository regressions pass | High | Pass | `npm test`; `next build` |
+| AT-08 | Full application compiles and repository regressions pass | High | Pass | `npm test`; `next build`; local browser smoke |
 | AT-09 | Interrupted disclosure is replayed | Critical | Blocked | Real SIP/event-machine evidence absent |
 | AT-10 | Cedar/Bridge improves resident experience without harm | Critical | Blocked | Representative blind PSTN research not run |
 | AT-11 | Phone latency and complete-thought rate match Harbor | Critical | Blocked | Comparable p50/p95/audio sample absent |
