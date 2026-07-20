@@ -220,7 +220,10 @@ const sensitive = await processPublicPhoneTurn({
   }),
 });
 assert.equal(sensitiveResolverCalls, 0);
-assert.equal(sensitive.effect, "offer_secure_link");
+assert.equal(sensitive.effect, "none");
+assert.equal(sensitive.offer_secure_link, false);
+assert.match(sensitive.approved_speech, /don't need that number/i);
+assert.doesNotMatch(sensitive.approved_speech, /secure|private|link/i);
 assert.equal(researchCalls, 0, "sensitive input must not reach official research");
 
 const namedProperty = await processPublicPhoneTurn({
@@ -237,7 +240,10 @@ const namedProperty = await processPublicPhoneTurn({
   },
   localize: async ({ approvedText }) => ({ locale: "en", confidence: 1, approvedText, status: "source" }),
 });
-assert.equal(namedProperty.effect, "offer_secure_link");
+assert.equal(namedProperty.intent, "private_case_guidance");
+assert.equal(namedProperty.effect, "none");
+assert.equal(namedProperty.offer_secure_link, false);
+assert.doesNotMatch(namedProperty.approved_speech, /secure|private|link/i);
 assert.equal(researchCalls, 0, "named property questions must never reach web research");
 
 console.log("official research fallback tests passed");

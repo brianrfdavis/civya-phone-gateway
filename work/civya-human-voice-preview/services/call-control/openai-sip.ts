@@ -789,10 +789,10 @@ export class OpenAISipController {
       if (CALL_ID.test(callId)) {
         this.sendFunctionOutput(call, callId, {
           ok: false,
-          message: "The lookup request was invalid. Offer to try again or reach a person.",
+          message: "The lookup request did not work. Give a useful general explanation without claiming an exact current fact.",
         });
         if (!this.advanceLookupResponse(call, turn)) return;
-        this.sendNoToolResponse(call, "Say briefly that the lookup did not work, then offer to try again or reach a person.");
+        this.sendNoToolResponse(call, "Give a useful general explanation without claiming an exact current fact. Answer first. Do not lecture, offer a link, or hand off unless the caller asks.");
         return;
       }
       this.releaseDirectResponse(call, turn);
@@ -829,12 +829,12 @@ export class OpenAISipController {
         this.sendFunctionOutput(call, callId, {
           ok: false,
           unsupported: true,
-          message: "The current official answer could not be verified. Offer to try again or reach a person.",
+          message: "The current official answer could not be verified. Give a useful general explanation without claiming an exact current fact.",
         });
         if (!this.advanceLookupResponse(call, turn)) return;
         this.sendNoToolResponse(
           call,
-          "Say briefly that you could not verify the current answer. Offer to try again or reach a person. Do not ask the caller to repeat the same question and do not recite a disclaimer.",
+          "Give a useful general explanation based on what you know, without claiming an exact current fact. Answer first. Do not lecture, offer a link, or hand off unless the caller asks.",
         );
         return;
       }
@@ -856,10 +856,10 @@ export class OpenAISipController {
       this.metrics.officialLookupFailures += 1;
       this.sendFunctionOutput(call, callId, {
         ok: false,
-        message: "Current official information was not available. Offer to try again or reach a person.",
+        message: "Current official information was not available. Give a useful general explanation without claiming an exact current fact.",
       });
       if (!this.advanceLookupResponse(call, turn)) return;
-      this.sendNoToolResponse(call, "Say briefly that you could not pull up the current information. Offer to try again or reach a person. Do not recite a disclaimer.");
+      this.sendNoToolResponse(call, "Give a useful general explanation based on what you know, without claiming an exact current fact. Answer first. Do not lecture, offer a link, or hand off unless the caller asks.");
     }
   }
 
@@ -1221,14 +1221,14 @@ function sipHeader(headers: Array<{ name: string; value: string }>, target: stri
 
 function fallbackHumanRoute(locale: string): PhoneRoute {
   return locale === "es"
-    ? { intent: "human_transfer", effect: "none", offerSecureLink: true, locale, approvedSpeech: "No puedo completar la transferencia en este momento. Puedo enviarle un enlace seguro para pedir ayuda humana sin perder su lugar." }
-    : { intent: "human_transfer", effect: "none", offerSecureLink: true, locale, approvedSpeech: "I can't complete the transfer right now. I can text a secure link so you can request human help without losing your place." };
+    ? { intent: "human_transfer", effect: "none", offerSecureLink: false, locale, approvedSpeech: "No pude completar la transferencia. Podemos seguir trabajando aquí, o puede pedirme que lo intente de nuevo." }
+    : { intent: "human_transfer", effect: "none", offerSecureLink: false, locale, approvedSpeech: "I couldn't complete the transfer. We can keep working here, or you can ask me to try again." };
 }
 
 function fallbackLinkRoute(locale: string): PhoneRoute {
   return locale === "es"
-    ? { intent: "secure_link", effect: "none", offerSecureLink: false, locale, approvedSpeech: "No pude enviar el enlace. No comparta información privada por teléfono. Puedo intentar comunicarle con una persona." }
-    : { intent: "secure_link", effect: "none", offerSecureLink: false, locale, approvedSpeech: "I couldn't send the link. Please don't share private information over the phone. I can try to connect you with a person." };
+    ? { intent: "secure_link", effect: "none", offerSecureLink: false, locale, approvedSpeech: "No pude enviar el enlace. Podemos seguir hablando aquí, o puedo intentarlo de nuevo." }
+    : { intent: "secure_link", effect: "none", offerSecureLink: false, locale, approvedSpeech: "I couldn't send the link. We can keep talking here, or I can try again." };
 }
 
 function unavailablePhoneRoute(): PhoneRoute {
@@ -1244,7 +1244,7 @@ function unavailablePhoneRoute(): PhoneRoute {
 function maximumTurnsPhoneRoute(): PhoneRoute {
   return {
     intent: "end",
-    approvedSpeech: "We've reached the end of this call. Please call back, use the secure website, or ask for a person if you still need help.",
+    approvedSpeech: "We've reached the end of this call. Please call back or ask for a person if you still need help.",
     effect: "end_call",
     offerSecureLink: false,
     locale: "en",

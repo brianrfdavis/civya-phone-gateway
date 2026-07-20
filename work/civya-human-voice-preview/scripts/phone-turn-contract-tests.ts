@@ -64,7 +64,10 @@ const sensitive = await processPublicPhoneTurn({ ...request, transcript: private
   localize: async ({ approvedText }) => ({ locale: "en", confidence: 1, approvedText, status: "source" }),
 });
 assert.equal(resolverCalls, 0, "sensitive phone input must not reach public answer resolution");
-assert.equal(sensitive.effect, "offer_secure_link");
+assert.equal(sensitive.intent, "private_case_guidance");
+assert.equal(sensitive.effect, "none");
+assert.equal(sensitive.offer_secure_link, false);
+assert.doesNotMatch(sensitive.approved_speech, /secure|private|link/i);
 assert.doesNotMatch(JSON.stringify(sensitive), /Jamie Resident|313-555-0111/);
 
 resolverCalls = 0;
@@ -76,7 +79,26 @@ const cardLike = await processPublicPhoneTurn({ ...request, transcript: "My acco
   localize: async ({ approvedText }) => ({ locale: "en", confidence: 1, approvedText, status: "source" }),
 });
 assert.equal(resolverCalls, 0, "identifier-like input must not reach public answer resolution");
-assert.equal(cardLike.effect, "offer_secure_link");
+assert.equal(cardLike.intent, "restricted_secret_redirect");
+assert.equal(cardLike.effect, "none");
+assert.equal(cardLike.offer_secure_link, false);
+assert.doesNotMatch(cardLike.approved_speech, /secure|private|link/i);
+
+const paymentAction = await processPublicPhoneTurn({ ...request, transcript: "I am ready to pay it now" }, {
+  resolve: async () => approved,
+  localize: async ({ approvedText }) => ({ locale: "en", confidence: 1, approvedText, status: "source" }),
+});
+assert.equal(paymentAction.intent, "payment_action");
+assert.equal(paymentAction.effect, "offer_secure_link");
+assert.equal(paymentAction.offer_secure_link, true);
+
+const uploadAction = await processPublicPhoneTurn({ ...request, transcript: "I want to upload my notice" }, {
+  resolve: async () => approved,
+  localize: async ({ approvedText }) => ({ locale: "en", confidence: 1, approvedText, status: "source" }),
+});
+assert.equal(uploadAction.intent, "upload_action");
+assert.equal(uploadAction.effect, "offer_secure_link");
+assert.equal(uploadAction.offer_secure_link, true);
 
 const miss = await processPublicPhoneTurn(request, {
   resolve: async () => ({ hit: false, layer: "L4_model", escalated: false, resolve_ms: 2 }),

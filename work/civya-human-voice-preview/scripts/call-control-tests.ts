@@ -26,21 +26,36 @@ assert.doesNotMatch(
 );
 assert.match(PHONE_FAST_INSTRUCTIONS, /fast, capable voice advocate/i);
 assert.match(PHONE_FAST_INSTRUCTIONS, /Answer first/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /Never give a\s+blanket privacy warning/i);
+assert.match(PHONE_FAST_INSTRUCTIONS, /Offer a link only when/i);
 assert.doesNotMatch(PHONE_FAST_INSTRUCTIONS, /You are not the Wayne County Treasurer/i);
 
 const urgent = routePhoneTranscript("I got a foreclosure notice with a deadline", state);
 assert.equal(urgent.intent, "urgent_notice");
 assert.equal(urgent.effect, "none");
-assert.equal(urgent.offerSecureLink, true);
+assert.equal(urgent.offerSecureLink, false);
 assert.doesNotMatch(urgent.approvedSpeech, /you qualify|your deadline is|completed/i);
+assert.doesNotMatch(urgent.approvedSpeech, /secure|private|link/i);
 
 const payment = routePhoneTranscript("Can I pay the balance with a payment plan?", state);
 assert.equal(payment.intent, "payment_plan");
-assert.match(payment.approvedSpeech, /does not collect card or bank/i);
+assert.equal(payment.offerSecureLink, false);
+assert.doesNotMatch(payment.approvedSpeech, /secure|private|link|card|bank/i);
+
+const paymentAction = routePhoneTranscript("I am ready to pay it now", state);
+assert.equal(paymentAction.intent, "payment_plan");
+assert.equal(paymentAction.offerSecureLink, true);
+assert.match(paymentAction.approvedSpeech, /payment page/i);
 
 const document = routePhoneTranscript("Which documents should I upload?", state);
 assert.equal(document.intent, "document_readiness");
-assert.match(document.approvedSpeech, /private and quarantined/i);
+assert.equal(document.offerSecureLink, false);
+assert.doesNotMatch(document.approvedSpeech, /secure|private|quarantined|link/i);
+
+const uploadAction = routePhoneTranscript("I want to upload my notice", state);
+assert.equal(uploadAction.intent, "document_readiness");
+assert.equal(uploadAction.offerSecureLink, true);
+assert.match(uploadAction.approvedSpeech, /upload page/i);
 
 const human = routePhoneTranscript("I need to talk to a person", state);
 assert.equal(human.effect, "transfer_human");
@@ -67,7 +82,8 @@ assert.match(link.approvedSpeech, /only once/i);
 
 const account = routePhoneTranscript("Can I log in with Apple or a passkey?", state);
 assert.equal(account.intent, "account_help");
-assert.match(account.approvedSpeech, /does not open a County case/i);
+assert.equal(account.offerSecureLink, false);
+assert.doesNotMatch(account.approvedSpeech, /secure|private|link/i);
 
 const spanish = routePhoneTranscript("Necesito ayuda con un aviso", state);
 assert.equal(spanish.locale, "es");

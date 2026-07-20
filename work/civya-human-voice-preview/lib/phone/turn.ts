@@ -1,5 +1,4 @@
 import { resolveAnswer } from "@/lib/cache/resolver";
-import { containsSensitiveMaterial } from "@/lib/conversation/policy";
 import {
   OpenAIApprovedSpeechLocalizer,
   type ApprovedSpeechLocalization,
@@ -16,6 +15,9 @@ const ITEM_ID = /^[A-Za-z0-9_-]{6,200}$/;
 const BCP47 = /^(?:und|[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|\d{3}))?)$/;
 const SAFE_INTENT = /^[a-z0-9_]{2,100}$/;
 const IMMEDIATE_DANGER = /\b(?:call 911|emergency|in immediate danger|someone is hurt|fire|suicide|kill myself)\b/i;
+const RESTRICTED_SECRET = /\b(?:social security|ssn|password|passcode|verification code|security code|pin|cvv|card number|bank account|routing number)\b|\b\d{12,19}\b/i;
+const PAYMENT_ACTION = /\b(?:ready|want|need|trying|would like)\s+to\s+(?:pay|make (?:a |the )?payment|check out)|\b(?:pay|make (?:a |the )?payment)\s+(?:it|this|that|now|today|online)\b/i;
+const UPLOAD_ACTION = /\b(?:ready|want|need|trying|would like)\s+to\s+(?:upload|send|submit|attach)\b|\b(?:upload|send|submit|attach)\s+(?:my |the |a )?(?:document|file|notice|photo|paperwork)\b/i;
 
 export type PublicPhoneEffect = "none" | "offer_secure_link" | "offer_human";
 
@@ -164,13 +166,26 @@ export async function processPublicPhoneTurn(
     canonicalSpeech = "If anyone is in immediate danger, hang up and call 911 now. I can help with the property-tax issue once everyone is safe.";
     effect = "offer_human";
     escalated = true;
-  } else if (containsSensitiveMaterial(input.transcript)
-      || redactionDetected
-      || containsPrivateResearchQuestion(input.transcript)) {
-    intent = "sensitive_information_blocked";
-    canonicalSpeech = "Let's keep private details off the phone line. I can text you a secure link so we can keep working, or connect you with a person.";
+  } else if (RESTRICTED_SECRET.test(input.transcript)) {
+    intent = "restricted_secret_redirect";
+    canonicalSpeech = PAYMENT_ACTION.test(input.transcript)
+      ? "I don't need that number. I can send the payment page when you're ready, and we can keep working through your question here."
+      : "I don't need that number. Tell me what you're trying to figure out, and I'll help with the next step.";
+    effect = PAYMENT_ACTION.test(input.transcript) ? "offer_secure_link" : "none";
+    offerSecureLink = PAYMENT_ACTION.test(input.transcript);
+  } else if (PAYMENT_ACTION.test(input.transcript)) {
+    intent = "payment_action";
+    canonicalSpeech = "I can send the payment page when you're ready. We can also keep talking here if you want help understanding the amount or your options first.";
     effect = "offer_secure_link";
     offerSecureLink = true;
+  } else if (UPLOAD_ACTION.test(input.transcript)) {
+    intent = "upload_action";
+    canonicalSpeech = "I can send the upload page so you can add that file. We can keep talking here while you get it ready.";
+    effect = "offer_secure_link";
+    offerSecureLink = true;
+  } else if (redactionDetected || containsPrivateResearchQuestion(input.transcript)) {
+    intent = "private_case_guidance";
+    canonicalSpeech = "I can help you work through that. Tell me what the notice or tax record says, and I'll explain it and help identify the next step.";
   } else {
     const resolved = await resolve(safeCallerText, "voice", {
       safetyIdentifier: input.call_reference_digest.slice(0, 48),

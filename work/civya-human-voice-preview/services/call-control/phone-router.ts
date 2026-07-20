@@ -39,6 +39,8 @@ const NEGATED_HUMAN = new RegExp(
 );
 const NEGATED_LINK = /\b(?:do not|don't|dont|not|no|never|no quiero)\b.{0,30}\b(?:text|link|sms|message|enlace|mensaje)\b/i;
 const NEGATED_END = /\b(?:do not|don't|dont|not|no|never|no quiero)\b.{0,20}\b(?:hang up|end|goodbye|bye|terminar)\b/i;
+const PAYMENT_ACTION = /\b(?:ready|want|need|trying|would like)\s+to\s+(?:pay|make (?:a |the )?payment|check out)|\b(?:pay|make (?:a |the )?payment)\s+(?:it|this|that|now|today|online)\b/i;
+const UPLOAD_ACTION = /\b(?:ready|want|need|trying|would like)\s+to\s+(?:upload|send|submit|attach)\b|\b(?:upload|send|submit|attach)\s+(?:my |the |a )?(?:document|file|notice|photo|paperwork)\b/i;
 
 export function welcomePhoneRoute(locale: "en" | "es" = "en"): PhoneRoute {
   if (locale === "es") {
@@ -67,34 +69,46 @@ export function routePhoneTranscript(transcript: string, state: PhoneRouterState
   const control = routePhoneControlTranscript(normalized, { ...state, locale });
   if (control) return control;
 
+  if (UPLOAD_ACTION.test(normalized)) {
+    return locale === "es"
+      ? route("document_readiness", "Puedo enviarle la página para cargar el archivo. Podemos seguir hablando aquí mientras lo prepara.", "none", true, locale)
+      : route("document_readiness", "I can send the upload page for that file. We can keep talking here while you get it ready.", "none", true, locale);
+  }
+
+  if (PAYMENT_ACTION.test(normalized)) {
+    return locale === "es"
+      ? route("payment_plan", "Puedo enviarle la página de pago cuando esté listo. También podemos seguir hablando aquí si primero quiere entender el monto o sus opciones.", "none", true, locale)
+      : route("payment_plan", "I can send the payment page when you're ready. We can also keep talking here if you want help understanding the amount or your options first.", "none", true, locale);
+  }
+
   if (/\b(foreclos|auction|court|sheriff|deadline|urgent|notice|aviso|subasta|tribunal|fecha l[ií]mite)\b/i.test(normalized)) {
     return locale === "es"
-      ? route("urgent_notice", "Puedo ayudarle a revisar el aviso sin adivinar fechas o resultados. Para proteger sus opciones, use el aviso oficial como fuente y pida ayuda humana si una fecha está cerca. Puedo enviarle un enlace seguro o comunicarle con una persona.", "none", true, locale)
-      : route("urgent_notice", "I can help you review the notice without guessing about dates or outcomes. To protect your options, use the official notice as the source and ask for human help if a date is close. I can text a secure link or connect you with a person.", "none", true, locale);
+      ? route("urgent_notice", "Puedo ayudarle con eso. Dígame la fecha y las palabras principales del aviso, y le explicaré lo que significa y el mejor próximo paso.", "none", false, locale)
+      : route("urgent_notice", "I can help with that. Tell me the date and the main wording on the notice, and I'll explain what it means and the best next step.", "none", false, locale);
   }
 
   if (/\b(payment|pay|plan|balance|amount|installment|pago|plan de pago|saldo|cantidad)\b/i.test(normalized)) {
     return locale === "es"
-      ? route("payment_plan", "Puedo explicarle los pasos de un plan de pago, pero no diré que un monto o pago está confirmado sin una respuesta de la fuente aprobada. Civya no recibe datos de tarjeta o banco. Puedo enviarle un enlace seguro para continuar.", "none", true, locale)
-      : route("payment_plan", "I can explain payment-plan steps, but I won't say an amount or payment is confirmed without a response from the approved source. Civya does not collect card or bank details. I can text a secure link so you can continue safely.", "none", true, locale);
+      ? route("payment_plan", "Puedo explicarle cómo funcionan los planes de pago y ayudarle a comparar el próximo paso. ¿Qué quiere saber sobre el monto o el plan?", "none", false, locale)
+      : route("payment_plan", "I can explain how payment plans work and help you compare the next step. What do you want to know about the amount or the plan?", "none", false, locale);
   }
 
   if (/\b(document|upload|proof|income|identification|id card|paperwork|documento|subir|comprobante|ingreso|identificaci[oó]n)\b/i.test(normalized)) {
     return locale === "es"
-      ? route("document_readiness", "Puedo ayudarle a preparar una lista de documentos. Los archivos deben cargarse por el sitio seguro, donde comienzan privados y en cuarentena para su revisión. Puedo enviarle el enlace seguro.", "none", true, locale)
-      : route("document_readiness", "I can help you prepare a document checklist. Files must be uploaded through the secure site, where they start private and quarantined for review. I can text the secure link.", "none", true, locale);
+      ? route("document_readiness", "Puedo ayudarle a preparar una lista clara de documentos. Dígame para qué programa o aviso está reuniendo los papeles.", "none", false, locale)
+      : route("document_readiness", "I can help you make a clear document checklist. Tell me which program or notice you're gathering the paperwork for.", "none", false, locale);
   }
 
   if (/\b(remind|reminder|follow up|call me|text me later|recordatorio|recu[eé]rdame|seguimiento)\b/i.test(normalized)) {
     return locale === "es"
-      ? route("reminders", "Puedo ayudarle a configurar recordatorios después de que confirme el canal y dé su consentimiento. Un recordatorio no confirma que el Condado haya recibido o aprobado algo. Puedo enviarle un enlace seguro.", "none", true, locale)
-      : route("reminders", "I can help set reminders after you confirm the channel and give consent. A reminder does not confirm that the County received or approved anything. I can text a secure link.", "none", true, locale);
+      ? route("reminders", "Puedo ayudarle a planear un recordatorio. Dígame qué necesita recordar y para cuándo.", "none", false, locale)
+      : route("reminders", "I can help you plan a reminder. Tell me what you need to remember and when.", "none", false, locale);
   }
 
   if (/\b(sign in|login|account|passkey|google|apple|linkedin|verify|identity|iniciar sesi[oó]n|cuenta|verificar|identidad)\b/i.test(normalized)) {
     return locale === "es"
-      ? route("account_help", "Puede iniciar sesión con las opciones disponibles en el sitio seguro. Iniciar sesión protege su progreso, pero no abre por sí solo un expediente del Condado. La verificación del expediente es un paso separado. Puedo enviarle el enlace seguro.", "none", true, locale)
-      : route("account_help", "You can sign in with the available options on the secure site. Signing in protects your progress, but it does not open a County case by itself. Case verification is a separate step. I can text the secure link.", "none", true, locale);
+      ? route("account_help", "Puedo ayudarle a entender el acceso a su cuenta y el paso que sigue. Dígame qué aparece en su pantalla o qué está intentando hacer.", "none", false, locale)
+      : route("account_help", "I can help you work through account access and the next step. Tell me what you see on the screen or what you're trying to do.", "none", false, locale);
   }
 
   return menu(locale);

@@ -102,6 +102,9 @@ function assertFastProfile(): void {
   assert.match(session.instructions, /Talk naturally about ordinary subjects/i);
   assert.match(session.instructions, /I created you/i);
   assert.match(session.instructions, /acknowledge them naturally and keep talking/i);
+  assert.match(session.instructions, /Never give a\s+blanket privacy warning/i);
+  assert.match(session.instructions, /Offer a link only when/i);
+  assert.match(session.instructions, /ordinary names, addresses, parcel numbers, and contact details/i);
   assert.match(session.instructions, /Before\s+stating any current or official[\s\S]*call\s+get_official_answer/i);
   assert.ok(
     session.instructions.length <= 2_000,
